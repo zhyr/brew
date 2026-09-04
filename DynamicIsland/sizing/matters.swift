@@ -101,6 +101,16 @@ func maxAllowedNotchWidth() -> CGFloat {
 func enabledStandardTabCount() -> Int {
     var count = 0
 
+    // App Launcher tab (new — always-on productivity surface)
+    if Defaults[.enableAppLauncherFeature] {
+        count += 1
+    }
+
+    // Agent Activity tab (new — Trae/Cursor/Codex/WorkBuddy monitoring)
+    // Counts toward tab-count-based width enforcement so the Agents tab is
+    // never occluded by the physical notch.
+    count += 1
+
     // Home tab
     if Defaults[.showStandardMediaControls] || Defaults[.showCalendar] || Defaults[.showMirror] {
         count += 1
@@ -135,9 +145,15 @@ func enabledStandardTabCount() -> Int {
 }
 
 /// Returns the recommended minimum notch width for the given tab count.
+/// Width tiers are calibrated so every tab gets ~110pt of horizontal room
+/// plus padding — enough for icon + label without occlusion by the physical
+/// notch (which on 14"/16" MBP is ~190pt wide centered).
 func recommendedMinimumNotchWidth(forTabCount count: Int) -> CGFloat {
-    if count >= 6 { return 770 }
-    if count >= 5 { return 690 }
+    if count >= 10 { return 1140 }   // 10+ tabs — high-density setup
+    if count >= 8  { return 1000 }   // 8-9 tabs
+    if count >= 6  { return 880 }    // 6-7 tabs
+    if count >= 5  { return 770 }
+    if count >= 4  { return 690 }
     return 640
 }
 

@@ -30,11 +30,9 @@ struct MusicControllerSelectionView: View {
     @Default(.mediaController) var mediaController
     
     private var availableMediaControllers: [MediaControllerType] {
-        if MusicManager.shared.isNowPlayingDeprecated {
-            return MediaControllerType.allCases.filter { $0 != .nowPlaying }
-        } else {
-            return MediaControllerType.allCases
-        }
+        // Simplified: only the universal "Now Playing" source is offered.
+        // See SettingsView.availableMediaControllers for the full rationale.
+        return [.nowPlaying]
     }
     
     @State private var selectedMediaController: MediaControllerType = Defaults[.mediaController]
@@ -136,7 +134,7 @@ extension MediaControllerType {
     var description: String {
         switch self {
         case .nowPlaying:
-            return String(localized: "Works with most media apps, including browsers, to detect what's playing. Note: This may be removed in a future macOS version.")
+            return String(localized: "System media controller. Automatically detects playback from any app that publishes to macOS Now Playing — including Apple Music, Spotify, 网易云音乐, QQ音乐, 汽水音乐, browsers, and more. No per-app configuration needed.")
         case .spotify:
             return String(localized: "Connects directly to the Spotify app.")
         case .appleMusic:

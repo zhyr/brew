@@ -18,6 +18,7 @@
 
 import SwiftUI
 import Defaults
+import AppKit
 
 // Graph data protocol for unified interface
 protocol GraphData {
@@ -61,6 +62,7 @@ struct DualGraphData: GraphData {
 
 struct NotchStatsView: View {
     @ObservedObject var statsManager = StatsManager.shared
+    @ObservedObject private var diskCleaner = DiskCleaner.shared
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.showCpuGraph) var showCpuGraph
     @Default(.showMemoryGraph) var showMemoryGraph
@@ -312,8 +314,14 @@ struct NotchStatsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if !enableStatsFeature {
+        // Wrap the whole tab body in a vertical ScrollView so when content
+        // (the stats grid + the 3 new disk/cleanup cards) exceeds the notch
+        // window height, the user can scroll the inner region without the
+        // window itself having to grow. The disabled/empty states still
+        // center vertically inside the ScrollView.
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                if !enableStatsFeature {
                 // Disabled state
                 VStack(spacing: 12) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
@@ -354,6 +362,19 @@ struct NotchStatsView: View {
             } else {
                 VStack(spacing: 8) {
                     statsGridLayout
+
+                    // ─────────────────────────────────────────────────────────
+                    // Disk & Cleanup cards (3 cards, 1 row).
+                    // The cleanup logic itself is delegated to the bundled
+                    // `disk_maintenance.sh` v4.0.0 from
+                    // https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite
+                    // by zhyr. See DiskCleaner.swift for full attribution.
+                    // ─────────────────────────────────────────────────────────
+                    HStack(spacing: 8) {
+                        DiskUsageStatsCard(diskCleaner: diskCleaner)
+                        SystemCleanerCard(diskCleaner: diskCleaner)
+                        DevCleanerCard(diskCleaner: diskCleaner)
+                    }
                 }
                 .padding(12)
                 .animation(.easeInOut(duration: 0.4), value: availableGraphs.count)
@@ -363,13 +384,16 @@ struct NotchStatsView: View {
                 ))
             }
         }
+        }  // closes VStack(spacing: 0) + ScrollView
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             // Note: Smart monitoring will handle starting/stopping based on notch state and current view
+            diskCleaner.startPolling()
         }
         .onDisappear {
             // Keep monitoring running when tab is not visible
             updateStatsPopoverState()
+            diskCleaner.stopPolling()
         }
         .animation(.easeInOut(duration: 0.4), value: enableStatsFeature)
         .animation(.easeInOut(duration: 0.4), value: availableGraphs.count)
@@ -690,4 +714,276 @@ struct DualQuadrantGraph: View {
     NotchStatsView()
         .frame(width: 400, height: 300)
         .background(Color.black)
+}
+
+// MARK: - Disk & Cleanup cards
+//
+// The three cards below mirror `UnifiedStatsCard`'s visual spec
+// (padding 8, corner radius 8, white 8% fill, hover stroke) so the row
+// reads as a natural extension of the Stats grid.
+//
+// Cleanup logic is delegated to `DiskCleaner`, which in turn shells out to
+// the bundled `disk_maintenance.sh` v4.0.0 by zhyr, sourced from
+// https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite
+
+/// Card 1 of 3 — shows current root-volume disk usage (free / total / % used).
+/// Read-only, no button.
+struct DiskUsageStatsCard: View {
+    @ObservedObject var diskCleaner: DiskCleaner
+    @State private var isHovered = false
+
+    var body: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: "internaldrive.fill")
+                    .foregroundStyle(.cyan)
+                    .font(.caption)
+                Text("磁盘占用")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.white.opacity(0.8))
+                Spacer()
+            }
+
+            // Values section — fixed height so all 3 cards line up.
+            Group {
+                if let usage = diskCleaner.diskUsage {
+                    Text(usage.usedPercentString)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("--")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 18)
+
+            // Visual bar instead of a sparkline — disk usage is a single
+            // snapshot, not a history, so a fill bar communicates it better
+            // than a flat line.
+            GeometryReader { geo in
+                let pct = diskCleaner.diskUsage?.usedPercent ?? 0
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.white.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(
+                            LinearGradient(
+                                colors: [pct < 0.8 ? .cyan : .orange, pct < 0.8 ? .blue : .red],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * CGFloat(pct))
+                }
+            }
+            .frame(height: 36)
+
+            // Footer line — free / total.
+            Text(diskCleaner.diskUsage?.summary ?? "—")
+                .font(.caption2)
+                .foregroundStyle(Color.white.opacity(0.6))
+                .lineLimit(1)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(isHovered ? 0.45 : 0.18), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isHovered)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onHover { isHovered = $0 }
+    }
+}
+
+/// Card 2 of 3 — "系统垃圾清理" — runs the GLOBAL half of disk_maintenance.sh
+/// (Gradle / npm / Cargo / pip / Homebrew / Cursor / VSCode / Xcode DerivedData
+/// / Simulator caches / Docker prune).
+struct SystemCleanerCard: View {
+    @ObservedObject var diskCleaner: DiskCleaner
+    @State private var isHovered = false
+
+    var body: some View {
+        cleanerCard(
+            title: "系统垃圾清理",
+            icon: "trash.square",
+            color: .orange,
+            scope: .system,
+            hoverHint: "Gradle · npm · Cargo · pip · Homebrew · Xcode"
+        )
+    }
+
+    private func cleanerCard(
+        title: String,
+        icon: String,
+        color: Color,
+        scope: DiskCleaner.CleanupScope,
+        hoverHint: String
+    ) -> some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.white.opacity(0.8))
+                Spacer()
+            }
+
+            // Center: spinner while running, else freed-size or "—" .
+            Group {
+                if diskCleaner.isCleaning {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(maxWidth: .infinity)
+                } else if let result = diskCleaner.lastResult, result.scope == scope {
+                    Text(result.summary)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(result.succeeded ? .green : .red)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("—")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 18)
+
+            // Bottom action zone.
+            Button(action: {
+                diskCleaner.runCleanup(scope: scope)
+            }) {
+                Text(diskCleaner.isCleaning ? diskCleaner.lastProgressLine : "一键清理")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(color.opacity(diskCleaner.isCleaning ? 0.3 : 0.6))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(diskCleaner.isCleaning)
+            .frame(height: 36)
+
+            // Hover hint — what gets cleaned.
+            Text(hoverHint)
+                .font(.caption2)
+                .foregroundStyle(Color.white.opacity(0.75))
+                .opacity(isHovered ? 1.0 : 0.0)
+                .animation(.easeInOut(duration: 0.2), value: isHovered)
+                .lineLimit(1)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(isHovered ? 0.45 : 0.18), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isHovered)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onHover { isHovered = $0 }
+    }
+}
+
+/// Card 3 of 3 — "开发者垃圾清理" — runs the WORK half of disk_maintenance.sh
+/// for `~/work` (.next / __pycache__ / tsbuildinfo / Rust target/debug /
+/// Electron staging / logs / test-results / nested dist).
+struct DevCleanerCard: View {
+    @ObservedObject var diskCleaner: DiskCleaner
+    @State private var isHovered = false
+
+    var body: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: "hammer.fill")
+                    .foregroundStyle(.purple)
+                    .font(.caption)
+                Text("开发者垃圾清理")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.white.opacity(0.8))
+                Spacer()
+            }
+
+            Group {
+                if diskCleaner.isCleaning {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(maxWidth: .infinity)
+                } else if let result = diskCleaner.lastResult, result.scope == .developer {
+                    Text(result.summary)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(result.succeeded ? .green : .red)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text("—")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: 18)
+
+            Button(action: {
+                diskCleaner.runCleanup(scope: .developer)
+            }) {
+                Text(diskCleaner.isCleaning ? diskCleaner.lastProgressLine : "一键清理")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.purple.opacity(diskCleaner.isCleaning ? 0.3 : 0.6))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(diskCleaner.isCleaning)
+            .frame(height: 36)
+
+            Text(".next · __pycache__ · target · dist · logs")
+                .font(.caption2)
+                .foregroundStyle(Color.white.opacity(0.75))
+                .opacity(isHovered ? 1.0 : 0.0)
+                .animation(.easeInOut(duration: 0.2), value: isHovered)
+                .lineLimit(1)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(isHovered ? 0.45 : 0.18), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isHovered)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onHover { isHovered = $0 }
+    }
 }

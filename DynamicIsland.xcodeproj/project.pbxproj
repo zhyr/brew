@@ -35,6 +35,9 @@
 		9A7D1A012F90000200A71001 /* AudioTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7D1A022F90000200A71002 /* AudioTapTests.swift */; };
 		A1B2C3D40000000000000001 /* LyricsMetadataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000002 /* LyricsMetadataTests.swift */; };
 		A1B2C3D40000000000000003 /* NetEaseLyricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000004 /* NetEaseLyricsTests.swift */; };
+		FA1B2C3D00000000000000B1 /* TabOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1B2C3D00000000000000B2 /* TabOrderTests.swift */; };
+		FA1B2C3D00000000000000C1 /* NowPlayingControllerPreferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1B2C3D00000000000000C2 /* NowPlayingControllerPreferenceTests.swift */; };
+		FA1B2C3D00000000000000D1 /* ScreenAssistantOllamaDefaultsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1B2C3D00000000000000D2 /* ScreenAssistantOllamaDefaultsTests.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* ExtensionRPCServerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* ExtensionRPCServerTests.swift */; };
 		A3C83CAF84544DCE386C3BB8 /* DynamicIslandUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54078F29304A9DBBEFBDF932 /* DynamicIslandUITests.swift */; };
 		A4B5C6D7E8F90123456789AB /* AppleMusicControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90123456789AC /* AppleMusicControllerTests.swift */; };
@@ -100,6 +103,9 @@
 		A058D80A7EF44593B0F24EB7 /* DynamicIslandUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DynamicIslandUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D40000000000000002 /* LyricsMetadataTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsMetadataTests.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000004 /* NetEaseLyricsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NetEaseLyricsTests.swift; sourceTree = "<group>"; };
+		FA1B2C3D00000000000000B2 /* TabOrderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TabOrderTests.swift; sourceTree = "<group>"; };
+		FA1B2C3D00000000000000C2 /* NowPlayingControllerPreferenceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NowPlayingControllerPreferenceTests.swift; sourceTree = "<group>"; };
+		FA1B2C3D00000000000000D2 /* ScreenAssistantOllamaDefaultsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScreenAssistantOllamaDefaultsTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5D /* ExtensionRPCServerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExtensionRPCServerTests.swift; sourceTree = "<group>"; };
 		A4B5C6D7E8F90123456789AC /* AppleMusicControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppleMusicControllerTests.swift; sourceTree = "<group>"; };
 		A70F1A022F90000100F1A001 /* FingerprintScan.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = FingerprintScan.json; sourceTree = "<group>"; };
@@ -219,6 +225,9 @@
 				2EB37667F763422E97DEEB49 /* MenuBarClearanceTests.swift */,
 				A1B2C3D40000000000000002 /* LyricsMetadataTests.swift */,
 				A1B2C3D40000000000000004 /* NetEaseLyricsTests.swift */,
+				FA1B2C3D00000000000000B2 /* TabOrderTests.swift */,
+				FA1B2C3D00000000000000C2 /* NowPlayingControllerPreferenceTests.swift */,
+				FA1B2C3D00000000000000D2 /* ScreenAssistantOllamaDefaultsTests.swift */,
 				A1B2C3D4E5F60718293A4B5D /* ExtensionRPCServerTests.swift */,
 				C1A2B3C4D5E6F70819AB2C3E /* ClipboardHistoryPersistenceTests.swift */,
 				D1A2B3C4D5E6F70819AB2C4E /* SystemHUDPlacementTests.swift */,
@@ -503,6 +512,9 @@
 				738C4EBB63E3449B923997D0 /* MenuBarClearanceTests.swift in Sources */,
 				A1B2C3D40000000000000001 /* LyricsMetadataTests.swift in Sources */,
 				A1B2C3D40000000000000003 /* NetEaseLyricsTests.swift in Sources */,
+				FA1B2C3D00000000000000B1 /* TabOrderTests.swift in Sources */,
+				FA1B2C3D00000000000000C1 /* NowPlayingControllerPreferenceTests.swift in Sources */,
+				FA1B2C3D00000000000000D1 /* ScreenAssistantOllamaDefaultsTests.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5C /* ExtensionRPCServerTests.swift in Sources */,
 				C1A2B3C4D5E6F70819AB2C3D /* ClipboardHistoryPersistenceTests.swift in Sources */,
 				D1A2B3C4D5E6F70819AB2C4D /* SystemHUDPlacementTests.swift in Sources */,
@@ -761,7 +773,6 @@
 		F54406F72CD4987B00C7AFD9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconDev;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = YES;
 				CODE_SIGN_ENTITLEMENTS = DynamicIsland/DynamicIsland.entitlements;
@@ -789,7 +800,7 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DynamicIsland/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Atoll;
+				INFOPLIST_KEY_CFBundleDisplayName = brew;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_MetalCaptureEnabled = YES;
@@ -814,7 +825,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 2.3.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Ebullioscopic.Atoll.dev;
-				PRODUCT_NAME = Atoll;
+				PRODUCT_NAME = brew;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
@@ -835,7 +846,6 @@
 		F54406F82CD4987B00C7AFD9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = YES;
 				CODE_SIGN_ENTITLEMENTS = DynamicIsland/DynamicIsland.entitlements;
@@ -864,7 +874,7 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DynamicIsland/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Atoll;
+				INFOPLIST_KEY_CFBundleDisplayName = brew;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_MetalCaptureEnabled = YES;
@@ -889,7 +899,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 2.3.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Ebullioscopic.Atoll;
-				PRODUCT_NAME = Atoll;
+				PRODUCT_NAME = brew;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
 				RUNTIME_EXCEPTION_ALLOW_JIT = NO;

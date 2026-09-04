@@ -36,11 +36,11 @@ struct DynamicNotchApp: App {
     private let updaterDelegate = AtollUpdaterDelegate()
 
     init() {
-        // Skip Sparkle's launch-time update check during UI testing.
-        // The AtollUpdaterDelegate overrides the feed URL at runtime
-        // based on the user's selected update channel.
+        // Auto-update disabled for local self-build distribution.
+        // Sparkle updater is initialized but never started to prevent
+        // accidental updates from overwriting local modifications.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: !AppRuntimeEnvironment.isUITesting,
+            startingUpdater: false,
             updaterDelegate: updaterDelegate, userDriverDelegate: nil)
 
         // Initialize the settings window controller with the updater controller
@@ -52,9 +52,8 @@ struct DynamicNotchApp: App {
             Button("Settings") {
                 SettingsWindowController.shared.showWindow()
             }
-            CheckForUpdatesView(updater: updaterController.updater)
             Divider()
-            Button("Restart Atoll") {
+            Button("Restart brew.app") {
                 guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
 
                 let workspace = NSWorkspace.shared

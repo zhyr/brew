@@ -99,12 +99,25 @@ class DynamicIslandViewCoordinator: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var hoverOpenSuppressedUntil: Date = .distantPast
     
-    private static let tabOrder: [NotchViews] = [.home, .shelf, .timer, .stats, .llmUsage, .colorPicker, .notes, .clipboard, .terminal, .extensionExperience]
-    
+    private static let tabOrder: [NotchViews] = [.appLauncher, .agentActivity, .home, .shelf, .timer, .stats, .llmUsage, .colorPicker, .notes, .clipboard, .terminal, .extensionExperience]
+
+    /// Returns the position of `view` in the canonical tab order, or nil if
+    /// the view is not part of the tab bar (e.g. `.extensionExperience` is
+    /// reachable only via gestures/shortcuts and is intentionally not in the
+    /// tab strip). Exposed for unit tests so the "App Launcher is first"
+    /// invariant can be pinned without instantiating SwiftUI views.
+    nonisolated static func tabIndex(_ view: NotchViews) -> Int? {
+        tabOrder.firstIndex(of: view)
+    }
+
+    /// The canonical tab order, exposed for tests. Production code should
+    /// continue to use `tabOrder` directly.
+    nonisolated static var allTabsInOrder: [NotchViews] { tabOrder }
+
     /// Direction of the most recent tab switch (true = forward/right, false = backward/left)
     @Published var tabSwitchForward: Bool = true
-    
-    @Published var currentView: NotchViews = .home {
+
+    @Published var currentView: NotchViews = .appLauncher {
         didSet {
             if Defaults[.enableMinimalisticUI] && currentView != .home {
                 currentView = .home

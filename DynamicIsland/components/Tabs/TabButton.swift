@@ -4,7 +4,7 @@
  *
  * Originally from boring.notch project
  * Modified and adapted for Atoll (DynamicIsland)
- * See NOTICE for details.
+ * See NOTICE for details
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +27,34 @@ struct TabButton: View {
     let icon: String
     let selected: Bool
     let onClick: () -> Void
-    
+    /// Optional app icon image. When provided, renders this image instead of
+    /// the SF Symbol specified by `icon`. Used for companion-app launcher tabs
+    /// (e.g. Recordly, iShot Pro, Perch) so the tab shows the actual app icon.
+    let appIcon: NSImage?
+
+    init(label: String, icon: String, selected: Bool, appIcon: NSImage? = nil, onClick: @escaping () -> Void) {
+        self.label = label
+        self.icon = icon
+        self.selected = selected
+        self.appIcon = appIcon
+        self.onClick = onClick
+    }
+
     var body: some View {
         Button(action: onClick) {
-            Image(systemName: icon)
-                .contentShape(Capsule())
+            if let appIcon = appIcon {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .contentShape(Capsule())
+            } else {
+                Image(systemName: icon)
+                    .contentShape(Capsule())
+            }
         }
         .buttonStyle(PlainButtonStyle())
+        .help(label)
     }
 }
 

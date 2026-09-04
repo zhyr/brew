@@ -519,7 +519,7 @@ class MusicManager: ObservableObject {
     private let mediaChecker = MediaChecker()
 
     // Active controller
-    private var activeController: (any MediaControllerProtocol)?
+    private(set) var activeController: (any MediaControllerProtocol)?
 
     // Pear Desktop auto-detection
     private static let pearDesktopBundleID = YouTubeMusicConfiguration.default.bundleIdentifier
@@ -816,14 +816,24 @@ class MusicManager: ObservableObject {
         return newController
     }
 
-    private func setActiveControllerBasedOnPreference() {
+    /// Internal (testable) entry point that resolves the user's
+    /// `Defaults[.mediaController]` preference to a concrete controller
+    /// instance and activates it. Production callers should use the public
+    /// `selectMediaController`/setup flows; this is exposed for unit tests
+    /// that verify the "Now Playing wins, no auto-fallback to Apple Music"
+    /// invariant.
+    func setActiveControllerBasedOnPreference() {
         let preferredType = Defaults[.mediaController]
         print("Preferred Media Controller: \(preferredType)")
 
-        // If NowPlaying is deprecated but that's the preference, use Apple Music instead
-        let controllerType = (self.isNowPlayingDeprecated && preferredType == .nowPlaying)
-            ? .appleMusic
-            : preferredType
+        // The user's preference wins. We deliberately no longer auto-fallback
+        // from .nowPlaying to .appleMusic when NowPlaying is "deprecated" on
+        // newer macOS builds, because NowPlaying is the only controller that
+        // transparently supports third-party players (网易云音乐, QQ音乐,
+        // 汽水音乐, …). If createController(.nowPlaying) returns nil on a
+        // deprecation-gated system, the fallback below still picks Apple Music
+        // so media controls don't go completely dead.
+        let controllerType = preferredType
 
         if let controller = createController(for: controllerType) {
             setActiveController(controller)

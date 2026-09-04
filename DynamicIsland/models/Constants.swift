@@ -795,10 +795,22 @@ enum AIModelProvider: String, CaseIterable, Identifiable, Defaults.Serializable 
                 AIModel(id: "claude-3-haiku", name: "Claude 3 Haiku", supportsThinking: false)
             ]
         case .local:
-            return [
-                AIModel(id: "llama3.2", name: "Llama 3.2", supportsThinking: false),
-                AIModel(id: "qwen2.5", name: "Qwen 2.5", supportsThinking: false)
+            // Built-in defaults; live list is fetched from Ollama /api/tags
+            // (see ScreenAssistantManager.fetchLocalOllamaModels) and merged with
+            // any cached Defaults[.localOllamaModels] so user-installed models
+            // such as qwen3.5:latest or embeddinggemma:300m appear automatically.
+            var models: [AIModel] = [
+                AIModel(id: "qwen3.5:latest", name: "Qwen 3.5 (local)", supportsThinking: false),
+                AIModel(id: "qwen2.5", name: "Qwen 2.5", supportsThinking: false),
+                AIModel(id: "llama3.2", name: "Llama 3.2", supportsThinking: false)
             ]
+            let cached = Defaults[.localOllamaModels] ?? []
+            var existingIds = Set(models.map { $0.id })
+            for m in cached where !existingIds.contains(m.id) {
+                models.append(m)
+                existingIds.insert(m.id)
+            }
+            return models
         case .groq:
             return [
                 AIModel(id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile", supportsThinking: false),
@@ -814,10 +826,44 @@ struct AIModel: Codable, Identifiable, Defaults.Serializable {
     let id: String
     let name: String
     let supportsThinking: Bool
-    
+
     var displayName: String {
         return name + (supportsThinking ? " (Thinking)" : "")
     }
+}
+
+/// One slot in the App Launcher. Empty slots have `bundleId == ""`.
+/// `iconPath` is the absolute path to the .app (so we can resolve its icon at runtime).
+struct AppLauncherSlot: Codable, Identifiable, Defaults.Serializable, Hashable {
+    let id: UUID
+    var bundleId: String
+    var appName: String
+    var appPath: String   // absolute path to .app, e.g. /Applications/Xcode.app
+    var customLabel: String?  // optional user override; otherwise use appName
+    var customIcon: String?   // optional SF Symbol override
+
+    init(id: UUID = UUID(),
+         bundleId: String = "",
+         appName: String = "",
+         appPath: String = "",
+         customLabel: String? = nil,
+         customIcon: String? = nil) {
+        self.id = id
+        self.bundleId = bundleId
+        self.appName = appName
+        self.appPath = appPath
+        self.customLabel = customLabel
+        self.customIcon = customIcon
+    }
+
+    var isEmpty: Bool { bundleId.isEmpty }
+
+    var displayName: String {
+        customLabel?.isEmpty == false ? customLabel! : (appName.isEmpty ? "Empty" : appName)
+    }
+
+    /// Ten empty slots — the launcher always has exactly this many.
+    static let defaultSlots: [AppLauncherSlot] = (0..<10).map { _ in AppLauncherSlot() }
 }
 
 struct NoteItem: Codable, Identifiable, Defaults.Serializable, Hashable {
@@ -1312,10 +1358,21 @@ extension Defaults.Keys {
     static let openaiApiKey = Key<String>("openaiApiKey", default: "")
     static let claudeApiKey = Key<String>("claudeApiKey", default: "")
     static let groqApiKey = Key<String>("groqApiKey", default: "")
-    static let selectedAIProvider = Key<AIModelProvider>("selectedAIProvider", default: .gemini)
-    static let selectedAIModel = Key<AIModel?>("selectedAIModel", default: nil)
+    static let selectedAIProvider = Key<AIModelProvider>("selectedAIProvider", default: .local)
+    static let selectedAIModel = Key<AIModel?>("selectedAIModel", default: AIModel(id: "qwen3.5:latest", name: "Qwen 3.5 (local)", supportsThinking: false))
     static let enableThinkingMode = Key<Bool>("enableThinkingMode", default: false)
     static let localModelEndpoint = Key<String>("localModelEndpoint", default: "http://localhost:11434")
+    // Locally-fetched Ollama models (cached from /api/tags). Nil = not fetched yet.
+    static let localOllamaModels = Key<[AIModel]?>("localOllamaModels", default: nil)
+
+    // MARK: App Launcher (10-slot quick launcher)
+    /// Toggle for the App Launcher tab in the notch.
+    static let enableAppLauncherFeature = Key<Bool>("enableAppLauncherFeature", default: true)
+    /// Maximum number of launcher slots. Fixed at 10 by design.
+    static let appLauncherSlotCount = 10
+    /// Persistent slot definitions. Each slot stores bundle id + display name + icon path.
+    /// Empty slots are represented by an entry with empty bundleId.
+    static let appLauncherSlots = Key<[AppLauncherSlot]>("appLauncherSlots", default: AppLauncherSlot.defaultSlots)
 
     // MARK: Third-Party Extensions
     static let enableThirdPartyExtensions = Key<Bool>("enableThirdPartyExtensions", default: true)
@@ -1464,11 +1521,13 @@ extension Defaults.Keys {
     
     // Helper to determine the default media controller based on macOS version
     static var defaultMediaController: MediaControllerType {
-        if #available(macOS 15.4, *) {
-            return .appleMusic
-        } else {
-            return .nowPlaying
-        }
+        // Always default to the system Now Playing controller — it picks up
+        // media playback from ANY app that publishes to the macOS Now Playing
+        // framework, including Apple Music, Spotify, 网易云音乐, QQ音乐,
+        // 汽水音乐, browsers, and more. The other explicit controller options
+        // (Apple Music / Spotify / YouTube / Cider / …) have been removed from
+        // the picker UI in favor of this universal source.
+        return .nowPlaying
     }
     
     // Migration helper to convert from legacy enableGradient Boolean to new ProgressBarStyle enum

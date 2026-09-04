@@ -10445,43 +10445,43 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll"
+            "value" : "brew.app"
           }
         }
       },
@@ -10494,19 +10494,19 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll %@"
+            "value" : "brew.app %@"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll %@"
+            "value" : "brew.app %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atoll %@"
+            "value" : "brew.app %@"
           }
         }
       }

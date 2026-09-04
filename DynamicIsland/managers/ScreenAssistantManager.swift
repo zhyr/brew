@@ -513,15 +513,56 @@ class ScreenAssistantManager: NSObject, ObservableObject {
             isLoading = false
             return
         }
-        
+
         guard let url = URL(string: "\(endpoint)/api/chat") else {
             print("❌ ScreenAssistant: Invalid local API URL")
             addAssistantMessage("Error: Invalid local API URL")
             isLoading = false
             return
         }
-        
+
         performAPIRequest(url: url, requestBody: buildOllamaRequestBody(message: message, files: files), provider: .local)
+    }
+
+    /// Fetch the list of locally-installed models from the Ollama `/api/tags`
+    /// endpoint and cache them in `Defaults[.localOllamaModels]` so the model
+    /// picker can show models the user has actually pulled (e.g.
+    /// `qwen3.5:latest`, `embeddinggemma:300m`).
+    ///
+    /// Embedding-only models (names starting with "embedding") are skipped
+    /// because they cannot participate in chat completion.
+    static func fetchLocalOllamaModels() async {
+        let endpoint = Defaults[.localModelEndpoint]
+        guard !endpoint.isEmpty, let url = URL(string: "\(endpoint)/api/tags") else {
+            print("ℹ️ ScreenAssistant: Local endpoint not configured, skipping Ollama /api/tags fetch")
+            return
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                print("⚠️ ScreenAssistant: Ollama /api/tags returned non-200")
+                return
+            }
+
+            struct OllamaTag: Decodable {
+                let name: String?
+                let model: String?
+            }
+            struct TagsResponse: Decodable {
+                let models: [OllamaTag]?
+            }
+
+            let decoded = try JSONDecoder().decode(TagsResponse.self, from: data)
+            let names = (decoded.models ?? [])
+                .compactMap { $0.name ?? $0.model }
+                .filter { !$0.lowercased().hasPrefix("embedding") } // skip embedding-only models
+            let models = names.map { AIModel(id: $0, name: $0, supportsThinking: false) }
+            Defaults[.localOllamaModels] = models
+            print("✅ ScreenAssistant: Fetched \(models.count) chat models from Ollama: \(names)")
+        } catch {
+            print("⚠️ ScreenAssistant: Failed to fetch Ollama /api/tags - \(error.localizedDescription)")
+        }
     }
     
     // MARK: - API Request Builders
@@ -664,18 +705,34 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     }
     
     private func buildOllamaRequestBody(message: String, files: [ScreenAssistantFile]) -> [String: Any] {
-        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "llama3.2", name: "Llama 3.2", supportsThinking: false)
+        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "qwen3.5:latest", name: "Qwen 3.5 (local)", supportsThinking: false)
         let contextualMessage = buildContextualMessage(message: message, files: files)
-        
+
+        var messages: [[String: Any]] = []
+        // Include recent conversation history so the local model has context
+        // (matches the behavior of the cloud providers above).
+        let recentMessages = Array(chatMessages.suffix(10))
+        for chatMessage in recentMessages {
+            if chatMessage.id != chatMessages.last?.id {
+                let role = chatMessage.isFromUser ? "user" : "assistant"
+                messages.append([
+                    "role": role,
+                    "content": chatMessage.content
+                ])
+            }
+        }
+        messages.append([
+            "role": "user",
+            "content": contextualMessage
+        ])
+
         return [
             "model": selectedModel.id,
-            "messages": [
-                [
-                    "role": "user",
-                    "content": contextualMessage
-                ]
-            ],
-            "stream": false
+            "messages": messages,
+            "stream": false,
+            "options": [
+                "temperature": 0.7
+            ]
         ]
     }
     

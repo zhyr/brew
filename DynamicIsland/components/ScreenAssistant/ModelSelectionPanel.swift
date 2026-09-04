@@ -130,7 +130,8 @@ struct ModelSelectionView: View {
     @State private var groqApiKey: String = Defaults[.groqApiKey]
     
     @State private var showingApiKeyAlert = false
-    
+    @State private var isFetchingLocalModels: Bool = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -194,10 +195,26 @@ struct ModelSelectionView: View {
                     // Model Selection
                     if !selectedProvider.supportedModels.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("\(selectedProvider.displayName) Models")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
+                            HStack {
+                                Text("\(selectedProvider.displayName) Models")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if selectedProvider == .local {
+                                    Button(action: refreshLocalModels) {
+                                        if isFetchingLocalModels {
+                                            ProgressView()
+                                                .scaleEffect(0.6)
+                                                .frame(width: 14, height: 14)
+                                        } else {
+                                            Image(systemName: "arrow.clockwise.circle")
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .help("Refresh models from local Ollama")
+                                }
+                            }
+
                             VStack(spacing: 8) {
                                 ForEach(selectedProvider.supportedModels) { model in
                                     ModelRow(
@@ -288,6 +305,12 @@ struct ModelSelectionView: View {
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onAppear {
             loadCurrentConfiguration()
+            // Auto-fetch local Ollama models if Local provider is selected, so
+            // the user's installed models (qwen3.5:latest, etc.) show up without
+            // requiring a manual refresh click.
+            if selectedProvider == .local {
+                refreshLocalModels()
+            }
         }
     }
     
@@ -341,6 +364,28 @@ struct ModelSelectionView: View {
     private func selectProvider(_ provider: AIModelProvider) {
         selectedProvider = provider
         ensureValidModelSelection()
+        if provider == .local {
+            refreshLocalModels()
+        }
+    }
+
+    private func refreshLocalModels() {
+        guard !isFetchingLocalModels else { return }
+        isFetchingLocalModels = true
+        // Save the endpoint first so the fetch uses the latest value.
+        Defaults[.localModelEndpoint] = localEndpoint
+        Task {
+            await ScreenAssistantManager.fetchLocalOllamaModels()
+            await MainActor.run {
+                isFetchingLocalModels = false
+                // Reload selection so newly discovered models show up. If the
+                // currently-selected model is no longer in the list, keep it
+                // anyway (user may have a custom id) but ensure it isn't nil.
+                if selectedModel == nil {
+                    selectedModel = AIModelProvider.local.supportedModels.first
+                }
+            }
+        }
     }
 
     private func ensureValidModelSelection() {

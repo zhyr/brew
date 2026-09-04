@@ -18,7 +18,7 @@ import SwiftUIIntrospect
 import UniformTypeIdentifiers
 
 /// Groups for organizing settings tabs in the sidebar.
-private enum SettingsTabGroup: String, CaseIterable, Identifiable {
+enum SettingsTabGroup: String, CaseIterable, Identifiable {
     case core
     case mediaAndDisplay
     case system
@@ -45,7 +45,7 @@ private enum SettingsTabGroup: String, CaseIterable, Identifiable {
     }
 }
 
-private enum SettingsTab: String, CaseIterable, Identifiable {
+enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case liveActivities
     case appearance
@@ -66,6 +66,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case shortcuts
     case notes
     case terminal
+    case appLauncher
     case about
 
     var id: String { rawValue }
@@ -79,7 +80,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .timer, .calendar, .notes:                                      return .productivity
         case .clipboard, .screenAssistant, .colorPicker, .shelf,
              .downloads, .shortcuts:                                         return .utilities
-        case .stats, .terminal:                                              return .developer
+        case .stats, .terminal, .appLauncher:                                return .developer
         case .extensions:                                                    return .integrations
         case .about:                                                         return .info
         }
@@ -87,7 +88,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: return String(localized: "General")
+        case .general: return String(localized: "brew.app")
         case .liveActivities: return String(localized: "Live Activities")
         case .appearance: return String(localized: "Appearance")
         case .lockScreen: return String(localized: "Lock Screen")
@@ -107,61 +108,54 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .shortcuts: return String(localized: "Shortcuts")
         case .notes: return String(localized: "Notes")
         case .terminal: return String(localized: "Terminal")
+        case .appLauncher: return String(localized: "App Launcher")
         case .about: return String(localized: "About")
         }
     }
 
     var systemImage: String {
         switch self {
-        case .general: return "gear"
+        case .general: return "gearshape.fill"
         case .liveActivities: return "waveform.path.ecg"
-        case .appearance: return "paintpalette"
-        case .lockScreen: return "lock.laptopcomputer"
-        case .media: return "play.laptopcomputer"
+        case .appearance: return "swatchpalette.fill"
+        case .lockScreen: return "lock.fill"
+        case .media: return "play.circle.fill"
         case .devices: return "headphones"
-        case .extensions: return "puzzlepiece.extension"
-        case .timer: return "timer"
-        case .calendar: return "calendar"
-        case .hudAndOSD: return "dial.medium.fill"
-        case .battery: return "battery.100.bolt"
-        case .stats: return "chart.xyaxis.line"
-        case .clipboard: return "clipboard"
-        case .screenAssistant: return "brain.head.profile"
+        case .extensions: return "puzzlepiece.extension.fill"
+        case .timer: return "timer.square"
+        case .calendar: return "calendar.badge.clock"
+        case .hudAndOSD: return "slider.horizontal.3"
+        case .battery: return "battery.100"
+        case .stats: return "chart.bar.fill"
+        case .clipboard: return "clipboard.fill"
+        case .screenAssistant: return "brain.head.profile.fill"
         case .colorPicker: return "eyedropper"
-        case .downloads: return "square.and.arrow.down"
-        case .shelf: return "books.vertical"
-        case .shortcuts: return "keyboard"
-        case .notes: return "note.text"
-        case .terminal: return "apple.terminal"
-        case .about: return "info.circle"
+        case .downloads: return "square.and.arrow.down.fill"
+        case .shelf: return "books.vertical.fill"
+        case .shortcuts: return "keyboard.fill"
+        case .notes: return "note.text.badge.plus"
+        case .terminal: return "terminal.fill"
+        case .appLauncher: return "square.grid.2x2.fill"
+        case .about: return "info.circle.fill"
         }
     }
 
+    /// Unified brew-style tint. The brew icon is a monochromatic gray with
+    /// a subtle teal-green accent (~10% of pixels). Sidebar icons all use
+    /// the same muted gray (`brewGray`) so the sidebar reads as a single
+    /// cohesive monochrome set; the selected tab is highlighted with
+    /// `brewAccent` (the teal-green) elsewhere in the sidebar layout.
     var tint: Color {
         switch self {
-        case .general: return .blue
-        case .liveActivities: return .pink
-        case .appearance: return .purple
-        case .lockScreen: return .orange
-        case .media: return .green
-        case .devices: return Color(red: 0.1, green: 0.11, blue: 0.12)
-        case .extensions: return Color(red: 0.557, green: 0.353, blue: 0.957)
-        case .timer: return .red
-        case .calendar: return .cyan
-        case .hudAndOSD: return .indigo
-        case .battery: return Color(red: 0.202, green: 0.783, blue: 0.348, opacity: 1.000)
-        case .stats: return .teal
-        case .clipboard: return .mint
-        case .screenAssistant: return .pink
-        case .colorPicker: return .accentColor
-        case .downloads: return .gray
-        case .shelf: return .brown
-        case .shortcuts: return .orange
-        case .notes: return Color(red: 0.979, green: 0.716, blue: 0.153, opacity: 1.000)
-        case .terminal: return Color(red: 0.2, green: 0.8, blue: 0.4)
-        case .about: return .secondary
+        case .about: return Self.brewAccent
+        default:     return Self.brewGray
         }
     }
+
+    /// brew icon dominant color (46% of pixels): muted neutral gray.
+    static let brewGray = Color(red: 0.50, green: 0.50, blue: 0.51, opacity: 1.0)
+    /// brew icon accent color (10% of pixels): dark teal-green.
+    static let brewAccent = Color(red: 0.13, green: 0.55, blue: 0.50, opacity: 1.0)
 
     func highlightID(for title: String) -> String {
         "\(rawValue)-\(title)"
@@ -213,7 +207,7 @@ enum LockScreenSettingsSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: return String(localized: "General")
+        case .general: return String(localized: "brew.app")
         case .widgets: return String(localized: "Widgets")
         }
     }
@@ -472,6 +466,10 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .terminal, title: "Scrollback lines", keywords: ["terminal", "scrollback", "buffer", "history"], highlightID: SettingsTab.terminal.highlightID(for: "Scrollback lines")),
         SettingsSearchEntry(tab: .terminal, title: "Option as Meta", keywords: ["terminal", "option", "meta", "alt", "key"], highlightID: SettingsTab.terminal.highlightID(for: "Option as Meta")),
         SettingsSearchEntry(tab: .terminal, title: "Mouse reporting", keywords: ["terminal", "mouse", "reporting", "vim", "tmux"], highlightID: SettingsTab.terminal.highlightID(for: "Mouse reporting")),
+
+        // MARK: App Launcher
+        SettingsSearchEntry(tab: .appLauncher, title: "Enable App Launcher tab", keywords: ["app", "launcher", "quick", "shortcut", "slots"], highlightID: SettingsTab.appLauncher.highlightID(for: "Enable App Launcher tab")),
+        SettingsSearchEntry(tab: .appLauncher, title: "Open App Launcher tab now", keywords: ["app", "launcher", "open", "switch"], highlightID: SettingsTab.appLauncher.highlightID(for: "Open App Launcher tab now")),
     ]
 
     /// Which segment of the Lock Screen tab a search result lives on, or nil
@@ -638,7 +636,11 @@ struct SettingsView: View {
                     }
                 }
                 .listStyle(SidebarListStyle())
-                .frame(minWidth: 200)
+                    // Use the brew accent color (teal-green) for the
+                    // selected-row highlight across the whole sidebar,
+                    // matching the brew.app icon's accent color.
+                    .tint(SettingsTab.brewAccent)
+                    .frame(minWidth: 200)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(removing: .sidebarToggle)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 210, max: 240)
@@ -1093,6 +1095,10 @@ struct SettingsView: View {
             SettingsForm(tab: .terminal) {
                 TerminalSettings()
             }
+        case .appLauncher:
+            SettingsForm(tab: .appLauncher) {
+                AppLauncherSettings()
+            }
         case .about:
             if let controller = updaterController {
                 SettingsForm(tab: .about) {
@@ -1286,12 +1292,12 @@ struct GeneralSettings: View {
             gestureControls()
         }
         .toolbar {
-            Button("Quit app") {
-                NSApp.terminate(self)
+            Button("Close Settings") {
+                NSApp.windows.first { $0.title.contains("Settings") }?.close()
             }
             .controlSize(.extraLarge)
         }
-        .navigationTitle("General")
+        .navigationTitle("brew.app Settings")
         .onChange(of: openNotchOnHover) {
             if !openNotchOnHover {
                 enableGestures = true
@@ -3550,11 +3556,13 @@ struct Media: View {
 
     // Only show controller options that are available on this macOS version
     private var availableMediaControllers: [MediaControllerType] {
-        if MusicManager.shared.isNowPlayingDeprecated {
-            return MediaControllerType.allCases.filter { $0 != .nowPlaying }
-        } else {
-            return MediaControllerType.allCases
-        }
+        // The picker has been simplified to a single "Now Playing" source that
+        // works with any app publishing to the macOS Now Playing framework
+        // (Apple Music, Spotify, 网易云音乐, QQ音乐, 汽水音乐, browsers, …).
+        // The other explicit options (Apple Music / Spotify / YouTube / Cider
+        // / …) are kept in the enum for migration compatibility but are no
+        // longer surfaced in the UI.
+        return [.nowPlaying]
     }
 
     private var unavailableBlurRow: some View {
@@ -4078,8 +4086,6 @@ struct About: View {
                     Text("Version info")
                 }
 
-                UpdaterSettingsView(updater: updaterController.updater)
-
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)
                     Button {
@@ -4120,44 +4126,6 @@ struct About: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.bottom, 5)
 
-                Section {
-                    ForEach(UpdateChannel.availableChannels) { channel in
-                        Button {
-                            updateChannel = channel
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: channel.badgeIcon)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Color(channel.badgeColor))
-                                    .frame(width: 20, alignment: .center)
-
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(channel.displayName)
-                                        .foregroundStyle(.primary)
-                                    Text(channel.description)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                if updateChannel == channel {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(Color(channel.badgeColor))
-                                }
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Text("Current build: \(UpdateChannel.buildChannel.displayName)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("Update channel")
-                }
                 VStack(spacing: 0) {
                     Divider()
                         .padding(.bottom, 5)
@@ -4169,13 +4137,6 @@ struct About: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
             }
-        }
-        .toolbar {
-            //            Button("Welcome window") {
-            //                openWindow(id: "onboarding")
-            //            }
-            //            .controlSize(.extraLarge)
-            CheckForUpdatesView(updater: updaterController.updater)
         }
         .navigationTitle("About")
     }
