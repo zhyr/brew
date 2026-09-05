@@ -158,6 +158,9 @@ struct DynamicIslandHeader: View {
                                 .overlay {
                                     headerGlyph("checklist")
                                 }
+                                .overlay(alignment: .bottomTrailing) {
+                                    TaskNoteSyncBadge()
+                                }
                         }
                         .buttonStyle(PlainButtonStyle())
                         .popover(isPresented: $showClipboardPopover, arrowEdge: .bottom) {

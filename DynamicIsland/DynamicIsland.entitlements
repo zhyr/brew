@@ -18,5 +18,17 @@
 		<string>com.apple.Music</string>
 		<string>com.apple.Notes</string>
 	</array>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.brew.app</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudDocuments</string>
+	</array>
+	<key>com.apple.developer.ubiquity-container-identifiers</key>
+	<array>
+		<string>iCloud.com.brew.app</string>
+	</array>
 </dict>
 </plist>

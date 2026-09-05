@@ -35,6 +35,7 @@ struct TaskReminderPanelView: View {
     var body: some View {
         VStack(spacing: 10) {
             header
+            TaskNoteSyncStatusRow()
             inputField
             taskList
         }
@@ -61,7 +62,7 @@ struct TaskReminderPanelView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image(systemName: "checklist")
                 .foregroundStyle(.primary)
                 .font(.system(size: 15, weight: .semibold))
@@ -82,6 +83,8 @@ struct TaskReminderPanelView: View {
 
             Spacer()
 
+            iCloudStatusBadge(state: manager.iCloudSyncState)
+
             Button {
                 onClose()
             } label: {
@@ -95,6 +98,61 @@ struct TaskReminderPanelView: View {
         }
         .padding(.horizontal, ClipboardPanelMetrics.contentInset)
         .padding(.top, ClipboardPanelMetrics.contentInset)
+    }
+
+    // MARK: - iCloud status badge
+
+    @ViewBuilder
+    private func iCloudStatusBadge(state: TaskReminderSyncState) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: badgeIconName(for: state))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(badgeColor(for: state))
+            Text(badgeShortText(for: state))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .help(state.description)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        }
+    }
+
+    private func badgeIconName(for state: TaskReminderSyncState) -> String {
+        switch state {
+        case .signedIn:         return "cloud.fill"
+        case .signedOut:        return "cloud.slash"
+        case .temporarilyLocal: return "cloud.slash.fill"
+        case .downloadingFiles: return "arrow.down.circle.fill"
+        case .unknown:          return "cloud"
+        }
+    }
+
+    private func badgeColor(for state: TaskReminderSyncState) -> Color {
+        switch state {
+        case .signedIn:         return .green
+        case .signedOut:        return .secondary
+        case .temporarilyLocal: return .secondary
+        case .downloadingFiles: return .accentColor
+        case .unknown:          return .secondary
+        }
+    }
+
+    private func badgeShortText(for state: TaskReminderSyncState) -> String {
+        switch state {
+        case .signedIn:         return "iCloud"
+        case .signedOut:        return "Local"
+        case .temporarilyLocal: return "Local"
+        case .downloadingFiles: return "Syncing"
+        case .unknown:          return "…"
+        }
     }
 
     // MARK: - Input Field

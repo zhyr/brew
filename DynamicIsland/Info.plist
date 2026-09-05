@@ -13,6 +13,10 @@
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>brew.app uses AppleScripts to control Spotify, Apple Music, and Notes.</string>
+	<key>NSUbiquitousContainerIDs</key>
+	<array>
+		<string>iCloud.com.brew.app</string>
+	</array>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>brew.app uses Apple Music to fetch animated artwork for the lock screen wallpaper.</string>
 	<key>NSAudioCaptureUsageDescription</key>

@@ -8399,7 +8399,15 @@ struct ClipboardSettings: View {
                 } header: {
                     Text("Clipboard Privacy")
                 } footer: {
-                    Text("When off, clipboard history is kept in memory for this session only and is never written to disk. Turning it off also erases history that was already saved. Pinned items are kept either way. TaskNote tasks are always saved to ~/Documents/brew/task-note/.")
+                    Text("When off, clipboard history is kept in memory for this session only and is never written to disk. Turning it off also erases history that was already saved. Pinned items are kept either way. TaskNote tasks live in your iCloud Drive (or, with sync off, locally) so they follow you across every Mac signed into the same iCloud account.")
+                }
+
+                Section {
+                    TaskNoteICloudSyncToggle()
+                } header: {
+                    Text("iCloud Sync")
+                } footer: {
+                    Text("When on, your tasks live in your iCloud Drive and stay in sync across every Mac signed into the same iCloud account. Turn it off and tasks stay in ~/Documents/brew/task-note/ on this Mac only.")
                 }
 
                 Section {
