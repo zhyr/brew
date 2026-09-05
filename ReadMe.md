@@ -1,19 +1,39 @@
-# brew\.app（眉梢）
+# brew.app（眉梢）
 
-> 基于 Atoll (DynamicIsland) 二次开发的 macOS 刘海屏增强工具，面向 IT 开发者定制。
+| | |
+|---|---|
+| 中文名 | **眉梢** |
+| 英文 / 产品名 | **brew** / `brew.app` |
+| 仓库 | https://github.com/zhyr/brew |
+
+> 基于 Atoll (DynamicIsland) 二次开发的 macOS 刘海屏增强工具，面向 IT 开发者定制。  
 > 遵循 GPL v3 协议，源代码公开，保留原作者版权声明。
 
 ## 项目定位
 
-brew\.app 是 **[LLM-based Software Development Kit Suite](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite)**（zhyr 开发者工具链）的成员应用之一，与以下工具协同提供全面高效的开发工具包，帮助开发者更好地组织和使用 LLM 衍生工具，提升开发体验：
+**眉梢（brew.app）** 是 **[LLM-based Software Development Kit Suite](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite)**（HaxiTAG 工具链）的成员应用之一：在刘海屏统一调度启动器、Agent 状态、磁盘维护与媒体控制，并与同系桌面工具协同。
 
-| 工具                | 仓库                                    | 角色                                                                |
-| ----------------- | ------------------------------------- | ----------------------------------------------------------------- |
-| **brew\.app（眉梢）** | 本仓库（基于 Atoll 二次开发）                    | macOS 刘海屏中枢：应用启动器、AI agent 状态监控、磁盘维护、媒体控制                         |
-| **Perch (栖痕)**    | `https://github.com/zhyr/Perch`       | 原生 macOS 速记应用，brew 通过 tab 一键唤起，承担笔记记录职责                           |
-| **Al-exporter**   | `https://github.com/zhyr/Al-exporter` | AI agent 安装路径与进程识别规范，brew 据此实现 Trae/Cursor/Codex/WorkBuddy 任务状态监控 |
+权威总览：Kit Suite [`TOOLCHAIN.md`](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite/blob/main/TOOLCHAIN.md)。
 
-三者组成完整工作流：brew（眉梢）在刘海屏统一调度，Perch（栖痕）承载即时记录，Al-exporter 规范 agent 识别。
+| 中文名 | 英文 / 产品 | 仓库 | 角色 |
+| ------ | ----------- | ---- | ---- |
+| **眉梢** | brew.app（本仓库） | [zhyr/brew](https://github.com/zhyr/brew) | 刘海屏中枢：应用启动器、AI agent 状态监控、磁盘维护、媒体控制 |
+| **栖痕** | Perch | [zhyr/Perch](https://github.com/zhyr/Perch) | 菜单栏剪贴板 / 提示词记录树；眉梢通过 tab 一键唤起 |
+| **疏引** | Vestige | [zhyr/RightMenu](https://github.com/zhyr/RightMenu) | Finder 全局复制路径与文件名、批量复制、打开终端 |
+| — | Al-exporter | [zhyr/Al-exporter](https://github.com/zhyr/Al-exporter) | AI agent 安装路径与进程识别规范；眉梢据此监控 Trae/Cursor/Codex/WorkBuddy |
+| — | Coding Scaffold | [Kit Suite / coding-scaffold](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite/tree/main/coding-scaffold) | IDE 内 Compose prompt + context |
+
+```text
+Kit Suite（Compose / disk_maintenance）
+        │
+        ├── 眉梢 brew.app ──刘海中枢──► 栖痕 Perch（记录回喂）
+        │         ▲
+        │         └── Al-exporter（Agent 路径约定）
+        │
+        └── 疏引 Vestige ──Finder 取径──► 粘贴进对话 / 栖痕 / 终端
+```
+
+典型协作：眉梢在刘海统一调度；栖痕承载即时记录；疏引从 Finder 取径；Al-exporter 规范 agent 识别；Scaffold 在 IDE 内组 prompt。
 
 ## 项目来源与协议
 
@@ -45,7 +65,8 @@ boring.notch (GPL v3)
 | -------------------- | -------------------------------------------------------------------------- | -------------------- | ---------------------------------------- |
 | disk\_maintenance.sh | `https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite` (v4.0.0) | 系统垃圾清理与开发者垃圾清理功能     | 脚本原样集成，封装于 `DiskCleaner.swift`           |
 | Al-exporter          | `https://github.com/zhyr/Al-exporter.git` (v2.1.0)                         | AI agent 安装路径与进程识别约定 | 路径约定参考，实现于 `AgentActivityProvider.swift` |
-| Perch (栖痕)           | `https://github.com/zhyr/Perch`                                            | 笔记记录功能委托外部 app 实现    | 独立安装，brew 通过 NSWorkspace 启动              |
+| 栖痕 / Perch           | `https://github.com/zhyr/Perch`                                            | 笔记记录委托外部 app             | 独立安装，眉梢通过 NSWorkspace 启动              |
+| 疏引 / Vestige         | `https://github.com/zhyr/RightMenu`                                        | Finder 取径（同系工具，无代码依赖） | 独立安装；路径经剪贴板进入栖痕 / 对话             |
 
 ## 相对原 Atoll 的改动清单
 
@@ -55,7 +76,7 @@ boring.notch (GPL v3)
 
 - **应用图标**：替换为自定义 PNG（`眉梢英文单词.png`），通过 `iconutil` 生成包含 16/32/64/128/256/512/1024 全尺寸的 `brew-icon.icns`
 
-- **设置界面**：窗口标题改为「brew\.app 设置」，退出按钮改为「关闭设置窗口」，侧栏图标统一为 brew 青绿风格
+- **设置界面**：窗口标题改为「brew.app 设置」，退出按钮改为「关闭设置窗口」，侧栏图标统一为 brew 青绿风格
 
 ### 2. 自动更新功能移除
 
@@ -137,19 +158,15 @@ boring.notch (GPL v3)
 
 - Tab 非激活时停止轮询以节省 CPU
 
-### 8. 笔记功能委托 Perch
+### 8. 笔记功能委托栖痕（Perch）
 
-将 brew 内置的 Notes/Clipboard 功能替换为启动外部 [Perch (栖痕)](https://github.com/zhyr/Perch) app：
+将 brew 内置的 Notes/Clipboard 功能替换为启动外部 [栖痕（Perch）](https://github.com/zhyr/Perch) app：
 
-- 安装 Perch 后，brew 的 Notes tab 自动变为 Perch tab
-
-- 点击 Perch tab 通过 `NSWorkspace.openApplication` 启动栖痕 app
-
+- 安装栖痕后，brew 的 Notes tab 自动变为 Perch tab
+- 点击该 tab 通过 `NSWorkspace.openApplication` 启动栖痕
 - 使用 `view: .home` 避免触发内置 clipboard 视图
-
 - `isSelected` 对外部 app tab 返回 false，notch 不会因点击而打开
-
-- Perch 未安装时回退显示 Clipboard tab
+- 栖痕未安装时回退显示 Clipboard tab
 
 ### 9. 沙箱禁用
 
@@ -171,7 +188,8 @@ boring.notch (GPL v3)
 
 - [Ollama](https://ollama.ai)（用于 ScreenAssistant 本地推理）
 
-- [Perch (栖痕)](https://github.com/zhyr/Perch)（可选，用于笔记功能）
+- [栖痕（Perch）](https://github.com/zhyr/Perch)（可选，用于笔记功能）
+- [疏引（Vestige）](https://github.com/zhyr/RightMenu)（可选，Finder 取径）
 
 ### 构建命令
 
@@ -263,12 +281,9 @@ Atoll/
 ## 致谢
 
 - [boring.notch](https://github.com/...) — 原始刘海屏增强项目
-
 - [Atoll (DynamicIsland)](https://github.com/Ebullioscopic/Atoll) — 本项目直接上游
-
-- [zhyr/LLM-based-Software-Devlopment-Kit-Suite](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite) — 磁盘清理脚本
-
+- [zhyr/LLM-based-Software-Devlopment-Kit-Suite](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite) — 工具链枢纽与磁盘清理脚本（见 [`TOOLCHAIN.md`](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite/blob/main/TOOLCHAIN.md)）
 - [zhyr/Al-exporter](https://github.com/zhyr/Al-exporter) — AI agent 路径识别约定
-
-- [zhyr/Perch](https://github.com/zhyr/Perch) — 栖痕笔记应用
+- [zhyr/Perch](https://github.com/zhyr/Perch) — 栖痕（Perch）笔记应用
+- [zhyr/RightMenu](https://github.com/zhyr/RightMenu) — 疏引（Vestige）Finder 取径
 
