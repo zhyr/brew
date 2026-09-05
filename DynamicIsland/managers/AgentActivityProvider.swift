@@ -117,6 +117,7 @@ final class AgentActivityMonitor: ObservableObject {
     @Published private(set) var runningProviders: Set<String> = []
 
     private var pollTimer: Timer?
+    private var isPaused = false
     private let queue = DispatchQueue(label: "atoll.agentMonitor", qos: .utility)
 
     private init() {}
@@ -124,18 +125,25 @@ final class AgentActivityMonitor: ObservableObject {
     // MARK: - Polling lifecycle
 
     func startPolling() {
-        guard pollTimer == nil else { return }
+        guard pollTimer == nil else {
+            // Timer exists but may be paused — resume it.
+            isPaused = false
+            return
+        }
         // Kick off an immediate poll so the user doesn't stare at an empty
         // card for 5 s after opening the tab.
         poll()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.poll()
+            guard let self, !self.isPaused else { return }
+            self.poll()
         }
     }
 
+    /// Pause polling instead of invalidating the timer. This keeps the timer
+    /// alive so resuming is instant and avoids the "monitoring terminated"
+    /// perception when the user briefly switches tabs.
     func stopPolling() {
-        pollTimer?.invalidate()
-        pollTimer = nil
+        isPaused = true
     }
 
     // MARK: - Poll

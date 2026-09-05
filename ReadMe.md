@@ -1,4 +1,4 @@
-# brew\.app
+# brew\.app（眉梢）
 
 > 基于 Atoll (DynamicIsland) 二次开发的 macOS 刘海屏增强工具，面向 IT 开发者定制。
 > 遵循 GPL v3 协议，源代码公开，保留原作者版权声明。
@@ -7,13 +7,13 @@
 
 brew\.app 是 **[LLM-based Software Development Kit Suite](https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite)**（zhyr 开发者工具链）的成员应用之一，与以下工具协同提供全面高效的开发工具包，帮助开发者更好地组织和使用 LLM 衍生工具，提升开发体验：
 
-| 工具              | 仓库                                    | 角色                                                                |
-| --------------- | ------------------------------------- | ----------------------------------------------------------------- |
-| **brew\.app**   | 本仓库（基于 Atoll 二次开发）                    | macOS 刘海屏中枢：应用启动器、AI agent 状态监控、磁盘维护、媒体控制                         |
-| **Perch (栖痕)**  | `https://github.com/zhyr/Perch`       | 原生 macOS 速记应用，brew 通过 tab 一键唤起，承担笔记记录职责                           |
-| **Al-exporter** | `https://github.com/zhyr/Al-exporter` | AI agent 安装路径与进程识别规范，brew 据此实现 Trae/Cursor/Codex/WorkBuddy 任务状态监控 |
+| 工具                | 仓库                                    | 角色                                                                |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| **brew\.app（眉梢）** | 本仓库（基于 Atoll 二次开发）                    | macOS 刘海屏中枢：应用启动器、AI agent 状态监控、磁盘维护、媒体控制                         |
+| **Perch (栖痕)**    | `https://github.com/zhyr/Perch`       | 原生 macOS 速记应用，brew 通过 tab 一键唤起，承担笔记记录职责                           |
+| **Al-exporter**   | `https://github.com/zhyr/Al-exporter` | AI agent 安装路径与进程识别规范，brew 据此实现 Trae/Cursor/Codex/WorkBuddy 任务状态监控 |
 
-三者组成完整工作流：brew 在刘海屏统一调度，Perch 承载即时记录，Al-exporter 规范 agent 识别。
+三者组成完整工作流：brew（眉梢）在刘海屏统一调度，Perch（栖痕）承载即时记录，Al-exporter 规范 agent 识别。
 
 ## 项目来源与协议
 

@@ -100,7 +100,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hudAndOSD: return String(localized: "Controls")
         case .battery: return String(localized: "Battery")
         case .stats: return String(localized: "Stats")
-        case .clipboard: return String(localized: "Clipboard")
+        case .clipboard: return String(localized: "TaskNote")
         case .screenAssistant: return String(localized: "Screen Assistant")
         case .colorPicker: return String(localized: "Color Picker")
         case .downloads: return String(localized: "Downloads")
@@ -127,7 +127,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .hudAndOSD: return "slider.horizontal.3"
         case .battery: return "battery.100"
         case .stats: return "chart.bar.fill"
-        case .clipboard: return "clipboard.fill"
+        case .clipboard: return "checklist"
         case .screenAssistant: return "brain.head.profile.fill"
         case .colorPicker: return "eyedropper"
         case .downloads: return "square.and.arrow.down.fill"
@@ -434,11 +434,11 @@ private enum SettingsSearchIndex {
         SettingsSearchEntry(tab: .stats, title: "Network Activity", keywords: ["network", "graph"], highlightID: SettingsTab.stats.highlightID(for: "Network Activity")),
         SettingsSearchEntry(tab: .stats, title: "Disk I/O", keywords: ["disk", "io"], highlightID: SettingsTab.stats.highlightID(for: "Disk I/O")),
 
-        // Clipboard
-        SettingsSearchEntry(tab: .clipboard, title: "Enable Clipboard Manager", keywords: ["clipboard", "manager"], highlightID: SettingsTab.clipboard.highlightID(for: "Enable Clipboard Manager")),
-        SettingsSearchEntry(tab: .clipboard, title: "Show Clipboard Icon", keywords: ["icon", "clipboard"], highlightID: SettingsTab.clipboard.highlightID(for: "Show Clipboard Icon")),
-        SettingsSearchEntry(tab: .clipboard, title: "Save History Across Restarts", keywords: ["clipboard", "history", "save", "persist", "privacy", "disk", "disable"], highlightID: SettingsTab.clipboard.highlightID(for: "Enable Clipboard Manager")),
-        SettingsSearchEntry(tab: .clipboard, title: "Display Mode", keywords: ["list", "grid", "clipboard"], highlightID: SettingsTab.clipboard.highlightID(for: "Display Mode")),
+        // TaskNote
+        SettingsSearchEntry(tab: .clipboard, title: "Enable TaskNote", keywords: ["task", "note", "reminder", "manager"], highlightID: SettingsTab.clipboard.highlightID(for: "Enable TaskNote")),
+        SettingsSearchEntry(tab: .clipboard, title: "Show TaskNote Icon", keywords: ["icon", "task", "note"], highlightID: SettingsTab.clipboard.highlightID(for: "Show TaskNote Icon")),
+        SettingsSearchEntry(tab: .clipboard, title: "Save History Across Restarts", keywords: ["clipboard", "history", "save", "persist", "privacy", "disk", "disable"], highlightID: SettingsTab.clipboard.highlightID(for: "Save History Across Restarts")),
+        SettingsSearchEntry(tab: .clipboard, title: "Display Mode", keywords: ["list", "grid", "panel", "task"], highlightID: SettingsTab.clipboard.highlightID(for: "Display Mode")),
         SettingsSearchEntry(tab: .clipboard, title: "History Size", keywords: ["history", "clipboard"], highlightID: SettingsTab.clipboard.highlightID(for: "History Size")),
 
         // Screen Assistant
@@ -4086,50 +4086,94 @@ struct About: View {
                     Text("Version info")
                 }
 
-                HStack(spacing: 30) {
-                    Spacer(minLength: 0)
-                    Button {
-                        NSWorkspace.shared.open(sponsorPage)
-                    } label: {
-                        VStack(spacing: 5) {
+                Section {
+                    Link(destination: RelatedProjects.brew) {
+                        HStack {
                             Image(systemName: "cup.and.saucer.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                            Text("Donate")
-                                .foregroundStyle(.primary)
+                                .frame(width: 20)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("brew.app（眉梢）")
+                                    .foregroundStyle(.primary)
+                                Text("刘海屏开发者工具调度中心")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
                         }
-                        .contentShape(Rectangle())
                     }
-                    Spacer(minLength: 0)
-                    Button {
-                        NSWorkspace.shared.open(productPage)
-                    } label: {
-                        VStack(spacing: 5) {
-                            Image("Github")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18)
-                                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                            Text("GitHub")
-                                .foregroundStyle(.primary)
+
+                    Link(destination: RelatedProjects.perch) {
+                        HStack {
+                            Image(systemName: "note.text")
+                                .frame(width: 20)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Perch（栖痕）")
+                                    .foregroundStyle(.primary)
+                                Text("轻量级即时笔记记录")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
                         }
-                        .contentShape(Rectangle())
                     }
-                    Spacer(minLength: 0)
+
+                    Link(destination: RelatedProjects.alExporter) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                                .frame(width: 20)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Al-exporter")
+                                    .foregroundStyle(.primary)
+                                Text("AI Agent 任务状态导出")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+
+                    Link(destination: RelatedProjects.devKitSuite) {
+                        HStack {
+                            Image(systemName: "hammer.fill")
+                                .frame(width: 20)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("LLM Dev Kit Suite")
+                                    .foregroundStyle(.primary)
+                                Text("开发者工具链套件（disk_maintenance.sh 等）")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                } header: {
+                    Text("Related Projects")
+                } footer: {
+                    Text("brew.app 是 LLM-based Software Development Kit Suite 工具链成员之一，与 Perch、Al-exporter 协同提供高效的开发体验。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(PlainButtonStyle())
-                
-                Text("Your support funds software development learning for students in 9th–12th grade.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, 5)
 
                 VStack(spacing: 0) {
                     Divider()
                         .padding(.bottom, 5)
-                    Text("Made with ❤️ by Ebullioscopic")
+                    Text("GPL v3 Licensed · brew.app Contributors")
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 7)
                         .multilineTextAlignment(.center)
@@ -7054,10 +7098,10 @@ struct Shortcuts: View {
                 Section {
                     HStack {
                         VStack(alignment: .leading) {
-                            KeyboardShortcuts.Recorder("Clipboard History:", name: .clipboardHistoryPanel)
+                            KeyboardShortcuts.Recorder("TaskNote Panel:", name: .clipboardHistoryPanel)
                                 .disabled(!enableShortcuts || !enableClipboardManager)
                             if !enableClipboardManager {
-                                Text("Clipboard feature is disabled")
+                                Text("TaskNote is disabled")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 2)
@@ -7066,13 +7110,13 @@ struct Shortcuts: View {
                         Spacer()
                     }
                 } header: {
-                    Text("Clipboard")
+                    Text("TaskNote")
                 } footer: {
                     Group {
                         if let shortcut = boundShortcutDescription(for: .clipboardHistoryPanel) {
-                            Text("Opens the clipboard history panel, currently \(shortcut). Only works when clipboard feature is enabled.")
+                            Text("Opens the TaskNote panel, currently \(shortcut). Only works when TaskNote is enabled.")
                         } else {
-                            Text("Opens the clipboard history panel. No shortcut is set. Only works when clipboard feature is enabled.")
+                            Text("Opens the TaskNote panel. No shortcut is set. Only works when TaskNote is enabled.")
                         }
                     }
                     .multilineTextAlignment(.trailing)
@@ -8326,9 +8370,9 @@ struct ClipboardSettings: View {
         Form {
             Section {
                 Defaults.Toggle(key: .enableClipboardManager) {
-                    Text("Enable Clipboard Manager")
+                    Text("Enable TaskNote")
                 }
-                .settingsHighlight(id: highlightID("Enable Clipboard Manager"))
+                .settingsHighlight(id: highlightID("Enable TaskNote"))
                 .onChange(of: enableClipboardManager) { _, enabled in
                     if enabled {
                         clipboardManager.startMonitoring()
@@ -8337,35 +8381,35 @@ struct ClipboardSettings: View {
                     }
                 }
             } header: {
-                Text("Clipboard Manager")
+                Text("TaskNote")
             } footer: {
                 if let shortcut = boundShortcutDescription(for: .clipboardHistoryPanel) {
-                    Text("Monitor clipboard changes and keep a history of recent copies. Press \(shortcut) to open clipboard history.")
+                    Text("TaskNote 提供事务提醒面板，支持手动输入或粘贴添加任务，按时间排序并标记完成。按 \(shortcut) 打开任务面板。同时保留系统剪贴板历史记录功能。")
                 } else {
-                    Text("Monitor clipboard changes and keep a history of recent copies. Set a shortcut under Shortcuts to open clipboard history.")
+                    Text("TaskNote 提供事务提醒面板，支持手动输入或粘贴添加任务，按时间排序并标记完成。在 Shortcuts 中设置快捷键以打开任务面板。同时保留系统剪贴板历史记录功能。")
                 }
             }
 
             if enableClipboardManager {
                 Section {
                     Defaults.Toggle(key: .persistClipboardHistory) {
-                        Text("Save History Across Restarts")
+                        Text("Save Clipboard History Across Restarts")
                     }
                     .settingsHighlight(id: highlightID("Save History Across Restarts"))
                 } header: {
-                    Text("Privacy")
+                    Text("Clipboard Privacy")
                 } footer: {
-                    Text("When off, clipboard history is kept in memory for this session only and is never written to disk. Turning it off also erases history that was already saved. Pinned items are kept either way.")
+                    Text("When off, clipboard history is kept in memory for this session only and is never written to disk. Turning it off also erases history that was already saved. Pinned items are kept either way. TaskNote tasks are always saved to ~/Documents/brew/task-note/.")
                 }
 
                 Section {
                     Defaults.Toggle(key: .showClipboardIcon) {
-                        Text("Show Clipboard Icon")
+                        Text("Show TaskNote Icon")
                     }
-                    .settingsHighlight(id: highlightID("Show Clipboard Icon"))
+                    .settingsHighlight(id: highlightID("Show TaskNote Icon"))
 
                     HStack {
-                        Text("Display Mode")
+                        Text("Panel Display Mode")
                         Spacer()
                         Picker("", selection: $clipboardDisplayMode) {
                             ForEach(ClipboardDisplayMode.allCases, id: \.self) { mode in
@@ -8378,7 +8422,7 @@ struct ClipboardSettings: View {
                     .settingsHighlight(id: highlightID("Display Mode"))
 
                     HStack {
-                        Text("History Size")
+                        Text("Clipboard History Size")
                         Spacer()
                         Picker("", selection: $clipboardHistorySize) {
                             Text("3 items").tag(3)
@@ -8392,7 +8436,7 @@ struct ClipboardSettings: View {
                     .settingsHighlight(id: highlightID("History Size"))
 
                     HStack {
-                        Text("Current Items")
+                        Text("Clipboard Items")
                         Spacer()
                         Text("\(clipboardManager.clipboardHistory.count)")
                             .foregroundColor(.secondary)
@@ -8406,7 +8450,7 @@ struct ClipboardSettings: View {
                     }
 
                     HStack {
-                        Text("Monitoring Status")
+                        Text("Clipboard Monitoring")
                         Spacer()
                         Text(clipboardManager.isMonitoring ? "Active" : "Stopped")
                             .foregroundColor(clipboardManager.isMonitoring ? .green : .secondary)
@@ -8416,13 +8460,13 @@ struct ClipboardSettings: View {
                 } footer: {
                     switch clipboardDisplayMode {
                     case .popover:
-                        Text("Popover mode shows clipboard as a dropdown attached to the clipboard button.")
+                        Text("Popover mode shows the TaskNote panel as a dropdown attached to the notch header button.")
                     case .panel:
-                        Text("Panel mode shows clipboard in a floating window near the notch.")
+                        Text("Panel mode shows the TaskNote panel in a floating window near the notch.")
                     case .separateTab:
-                        Text("Separate Tab mode integrates Copied Items and Notes into a single view. If both are enabled, Notes appear on the right and Clipboard on the left.")
+                        Text("Separate Tab mode integrates Clipboard History and Notes into a single notch tab.")
                     case .notchTab:
-                        Text("Notch Tab mode shows clipboard in its own tab inside the notch. Drag text, image, or single-file items straight out to Finder or another app.")
+                        Text("Notch Tab mode shows clipboard history in its own tab inside the notch. Drag text, image, or single-file items straight out to Finder or another app.")
                     }
                 }
 
@@ -8473,7 +8517,7 @@ struct ClipboardSettings: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Clipboard")
+        .navigationTitle("TaskNote")
         .onAppear {
             if enableClipboardManager && !clipboardManager.isMonitoring {
                 clipboardManager.startMonitoring()

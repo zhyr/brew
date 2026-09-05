@@ -17,6 +17,7 @@
  */
 
 import Defaults
+import os
 import SwiftUI
 
 struct DynamicIslandHeader: View {
@@ -31,6 +32,17 @@ struct DynamicIslandHeader: View {
     @State private var showClipboardPopover = false
     @State private var showColorPickerPopover = false
     @State private var showTimerPopover = false
+    /// Cached companion-app URL so click handlers don't run an expensive
+    /// `NSWorkspace.urlForApplication` lookup on every tap. Populated lazily
+    /// the first time the header appears (or when the user installs Perch
+    /// and reopens the notch).
+    @State private var perchAppURL: URL?
+    /// Real Perch icon, loaded once and reused so the header button shows the
+    /// actual app glyph instead of an SF Symbol.
+    @State private var perchAppIcon: NSImage?
+    /// Visual flash used to acknowledge a Perch click, since the Perch app
+    /// is LSUIElement and doesn't get "selected" in the notch.
+    @State private var perchFlash = false
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.timerDisplayMode) var timerDisplayMode
     @Default(.showClipboardIcon) var showClipboardIcon
@@ -119,11 +131,16 @@ struct DynamicIslandHeader: View {
                         && showClipboardIcon
                         && clipboardDisplayMode != .separateTab {
                         Button(action: {
-                            // Switch behavior based on display mode
+                            // Switch behavior based on display mode.
+                            // `.panel` now opens the task reminder panel
+                            // (repurposed from clipboard history to avoid
+                            // overlap with Perch notes).
                             switch clipboardDisplayMode {
                             case .panel:
                                 ClipboardPanelManager.shared.toggleClipboardPanel()
                             case .popover:
+                                // Popover mode shows the task reminder panel
+                                // as a dropdown anchored to this button.
                                 showClipboardPopover.toggle()
                             case .separateTab:
                                 coordinator.currentView = .notes
@@ -139,12 +156,14 @@ struct DynamicIslandHeader: View {
                                 .fill(.black)
                                 .frame(width: 30, height: 30)
                                 .overlay {
-                                    headerGlyph("list.clipboard")
+                                    headerGlyph("checklist")
                                 }
                         }
                         .buttonStyle(PlainButtonStyle())
                         .popover(isPresented: $showClipboardPopover, arrowEdge: .bottom) {
-                            ClipboardPopover()
+                            ClipboardPopover {
+                                showClipboardPopover = false
+                            }
                         }
                         .onChange(of: showClipboardPopover) { isActive in
                             vm.isClipboardPopoverActive = isActive
@@ -162,7 +181,39 @@ struct DynamicIslandHeader: View {
                             }
                         }
                     }
-                    
+
+                    // Perch (栖痕 / zhyr/Perch) launcher button. Sits to the
+                    // right of the TaskNote button so the two companion-app
+                    // controls read as one row. Hidden when Perch isn't
+                    // installed (the cached URL stays nil).
+                    if let perchURL = perchAppURL {
+                        Button(action: launchPerch) {
+                            Capsule()
+                                .fill(.black)
+                                .frame(width: 30, height: 30)
+                                .overlay {
+                                    if let icon = perchAppIcon {
+                                        Image(nsImage: icon)
+                                            .resizable()
+                                            .interpolation(.high)
+                                            .scaledToFit()
+                                            .frame(width: 18, height: 18)
+                                    } else {
+                                        headerGlyph("note.text")
+                                    }
+                                }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .help("Perch（栖痕）")
+                        .onAppear {
+                            // Icon may have been nil if the URL was just
+                            // resolved by the cache step below — fill it now.
+                            if perchAppIcon == nil {
+                                perchAppIcon = NSWorkspace.shared.icon(forFile: perchURL.path)
+                            }
+                        }
+                    }
+
                     // ColorPicker button
                     if Defaults[.enableColorPickerFeature] && showColorPickerIcon{
                         Button(action: {
@@ -294,6 +345,17 @@ struct DynamicIslandHeader: View {
         }
         .foregroundColor(.gray)
         .environmentObject(vm)
+        .onAppear {
+            // Populate the cached Perch URL the first time the header
+            // appears so the launcher button can render. The button is
+            // gated on `perchAppURL != nil`, so without this call Perch
+            // would never appear in the row.
+            //
+            // `cachePerchAppIfNeeded` self-guards against repeat lookups
+            // (the SwiftUI `.onAppear` may fire on every parent re-render),
+            // and the lookup is cheap — `NSWorkspace` keeps its index hot.
+            cachePerchAppIfNeeded()
+        }
         .onChange(of: coordinator.shouldToggleClipboardPopover) { _ in
             // Only toggle if clipboard is enabled
             if Defaults[.enableClipboardManager] {
@@ -349,7 +411,111 @@ private extension DynamicIslandHeader {
             && Defaults[.showColorPickerIcon]
             && Defaults[.enableTimerFeature]
     }
+
+    // MARK: - Perch launcher
+
+    /// Bundle identifier for the Perch companion app
+    /// (https://github.com/zhyr/Perch). Kept here so the launch path is
+    /// the single place that knows about Perch.
+    private static let perchBundleID = "com.local.perch"
+
+    /// Launch Perch and bring its floating panel to the foreground.
+    ///
+    /// Perch is an `LSUIElement` app, so the usual `NSWorkspace
+    /// .OpenConfiguration.activates = true` is silently ignored — both on
+    /// cold start (LaunchServices starts the process but never raises its
+    /// window) and on re-launch (the running instance is asked to open
+    /// again, which is a no-op for an already-running single-instance app).
+    ///
+    /// The reliable path is `NSRunningApplication.activate(...)` against the
+    /// already-running instance, falling back to AppleScript after a cold
+    /// start once the app has had a moment to register with LaunchServices.
+    private func launchPerch() {
+        // 1. Fast path: Perch is already running. NSRunningApplication is
+        //    the only call that consistently raises an LSUIElement window
+        //    back to the front.
+        if let running = NSRunningApplication.runningApplications(
+            withBundleIdentifier: Self.perchBundleID
+        ).first {
+            running.activate(options: [.activateAllWindows])
+            flashPerchButton()
+            return
+        }
+
+        // 2. Cold start. NSWorkspace.launch will start the binary, but the
+        //    activationPolicy(.accessory) means the panel isn't shown until
+        //    the app itself decides to show it (Perch shows its popover
+        //    ~0.35s after launch). After that grace period we ask AppleScript
+        //    to activate it as a belt-and-braces in case the panel didn't
+        //    surface — NSAppleEventsUsageDescription is declared in Info.plist.
+        let url = perchAppURL
+            ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.perchBundleID)
+        guard let url else {
+            // Perch isn't installed; the button shouldn't have been visible,
+            // but guard anyway so a race during install doesn't crash.
+            return
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = false
+        config.createsNewApplicationInstance = false
+        NSWorkspace.shared.openApplication(at: url, configuration: config)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            // `DynamicIslandHeader` is a SwiftUI value type (struct), so
+            // `[weak self]` is invalid. Capture by value — `self` here is a
+            // cheap value copy and `activatePerchViaAppleScript()` only
+            // touches module-level state, so this is safe and self-contained.
+            self.activatePerchViaAppleScript()
+        }
+
+        flashPerchButton()
+    }
+
+    private func activatePerchViaAppleScript() {
+        let script = NSAppleScript(source: """
+        tell application "Perch"
+            activate
+        end tell
+        """)
+        // `executeAndReturnError(_:)` writes an `NSDictionary?` on failure;
+        // `NSErr` is not a real type.
+        var errorInfo: NSDictionary?
+        script?.executeAndReturnError(&errorInfo)
+        if let errorInfo {
+            let message = errorInfo[NSLocalizedDescriptionKey] as? String ?? errorInfo.description
+            os_log(
+                .error,
+                log: perchLaunchLog,
+                "AppleScript activate Perch failed: %{public}@",
+                message
+            )
+        }
+    }
+
+    private func flashPerchButton() {
+        withAnimation(.easeOut(duration: 0.15)) {
+            perchFlash = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            withAnimation(.easeIn(duration: 0.2)) {
+                perchFlash = false
+            }
+        }
+    }
+
+    private func cachePerchAppIfNeeded() {
+        guard perchAppURL == nil else { return }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.perchBundleID) {
+            perchAppURL = url
+            perchAppIcon = NSWorkspace.shared.icon(forFile: url.path)
+        }
+    }
 }
+
+private let perchLaunchLog = OSLog(
+    subsystem: "com.brew.dynamicisland",
+    category: "PerchLauncher"
+)
 
 #Preview {
     DynamicIslandHeader()

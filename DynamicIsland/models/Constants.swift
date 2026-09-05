@@ -322,10 +322,10 @@ enum ClipboardDisplayMode: String, CaseIterable, Codable, Defaults.Serializable 
     
     var description: String {
         switch self {
-        case .popover: return "Shows clipboard as a dropdown attached to the clipboard button"
-        case .panel: return "Shows clipboard in a floating panel near the notch"
-        case .separateTab: return "Shows copied items in a separate tab within the Dynamic Island (merges with Notes if enabled)"
-        case .notchTab: return "Shows copied items in a dedicated clipboard tab inside the notch; drag items straight out to other apps"
+        case .popover: return "Shows the TaskNote panel as a dropdown attached to the notch header button"
+        case .panel: return "Shows the TaskNote panel in a floating window near the notch"
+        case .separateTab: return "Shows clipboard history in a separate notch tab (merges with Notes if enabled)"
+        case .notchTab: return "Shows clipboard history in a dedicated notch tab; drag items straight out to other apps"
         }
     }
 }

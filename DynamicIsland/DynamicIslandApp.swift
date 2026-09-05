@@ -30,21 +30,11 @@ struct DynamicNotchApp: App {
     @Default(.menubarIcon) var showMenuBarIcon
     @Environment(\.openWindow) var openWindow
 
-    let updaterController: SPUStandardUpdaterController
-    /// Retained delegate instance that dynamically selects the Sparkle feed URL
-    /// based on the user's update channel preference.
-    private let updaterDelegate = AtollUpdaterDelegate()
-
     init() {
         // Auto-update disabled for local self-build distribution.
-        // Sparkle updater is initialized but never started to prevent
-        // accidental updates from overwriting local modifications.
-        updaterController = SPUStandardUpdaterController(
-            startingUpdater: false,
-            updaterDelegate: updaterDelegate, userDriverDelegate: nil)
-
-        // Initialize the settings window controller with the updater controller
-        SettingsWindowController.shared.setUpdaterController(updaterController)
+        // Sparkle framework is still linked (used by some UI types in
+        // SettingsView) but no updater controller is instantiated, so no
+        // outbound update checks can ever occur.
     }
 
     var body: some Scene {
@@ -107,17 +97,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @ObservedObject var coordinator = DynamicIslandViewCoordinator.shared
     var whatsNewWindow: NSWindow?
     var timer: Timer?
-    let calendarManager = CalendarManager.shared
-    let webcamManager = WebcamManager.shared
-    let dndManager = DoNotDisturbManager.shared  // NEW: DND detection
-    let bluetoothAudioManager = BluetoothAudioManager.shared  // NEW: Bluetooth audio detection
-    let idleAnimationManager = IdleAnimationManager.shared  // NEW: Custom idle animations
-    let downloadManager = DownloadManager.shared  // NEW: browser downloads detection
-    let lockScreenPanelManager = LockScreenPanelManager.shared  // NEW: Lock screen music panel
-    let mediaControlsStateCoordinator = MediaControlsStateCoordinator.shared
-    let systemTimerBridge = SystemTimerBridge.shared
-    let extensionXPCServiceHost = ExtensionXPCServiceHost.shared
-    let extensionRPCServer = ExtensionRPCServer.shared
+    // Lazy-initialized shared managers. Deferring their init keeps app launch
+    // fast — each singleton may do file I/O / notification registration in its
+    // init, which doesn't need to block applicationDidFinishLaunching.
+    lazy var calendarManager = CalendarManager.shared
+    lazy var webcamManager = WebcamManager.shared
+    lazy var dndManager = DoNotDisturbManager.shared
+    lazy var bluetoothAudioManager = BluetoothAudioManager.shared
+    lazy var idleAnimationManager = IdleAnimationManager.shared
+    lazy var downloadManager = DownloadManager.shared
+    lazy var lockScreenPanelManager = LockScreenPanelManager.shared
+    lazy var mediaControlsStateCoordinator = MediaControlsStateCoordinator.shared
+    lazy var systemTimerBridge = SystemTimerBridge.shared
+    lazy var extensionXPCServiceHost = ExtensionXPCServiceHost.shared
+    lazy var extensionRPCServer = ExtensionRPCServer.shared
     var closeNotchWorkItem: DispatchWorkItem?
     private var previousScreens: [NSScreen]?
     private var onboardingWindowController: NSWindowController?
@@ -1357,14 +1350,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case .panel:
                 ClipboardPanelManager.shared.toggleClipboardPanel()
             case .popover:
-                if vm.notchState == .closed {
-                    vm.open()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        NotificationCenter.default.post(name: NSNotification.Name("ToggleClipboardPopover"), object: nil)
-                    }
-                } else {
-                    NotificationCenter.default.post(name: NSNotification.Name("ToggleClipboardPopover"), object: nil)
-                }
+                // Popover mode is anchored to the notch header button, so
+                // route through the coordinator which the header observes to
+                // toggle the popover.
+                coordinator.toggleClipboardPopover()
             case .separateTab:
                 if vm.notchState == .closed {
                     vm.open()

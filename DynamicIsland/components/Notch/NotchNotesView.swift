@@ -28,16 +28,20 @@ struct NotchNotesView: View {
     @Default(.clipboardDisplayMode) var clipboardDisplayMode
     @Default(.enableClipboardManager) var enableClipboardManager
     @Default(.enableAppleNotesSync) var enableAppleNotesSync
-    
-    @State private var selectedNoteId: UUID?
-    @State private var isEditingNewNote = false
-    
-    // Editor State
-    @State private var editorTitle: String = ""
-    @State private var editorContent: String = ""
-    @State private var editorImageData: Data? = nil
-    @State private var editorColorIndex: Int = 0
-    @State private var editorNoteId: UUID?
+
+    // Editor state is stored in the coordinator so it survives tab switches.
+    // @State would be reset when the view is rebuilt after switching away
+    // and back, causing unsaved content to be lost.
+    private var selectedNoteId: UUID? { coordinator.notesSelectedNoteId }
+    private var isEditingNewNote: Bool { coordinator.notesIsEditingNewNote }
+
+    // Editor State — read directly from coordinator. Mutations go through
+    // coordinator.notesDraftXxx = ... since self is immutable in a View struct.
+    private var editorTitle: String { coordinator.notesDraftTitle }
+    private var editorContent: String { coordinator.notesDraftContent }
+    private var editorImageData: Data? { coordinator.notesDraftImageData }
+    private var editorColorIndex: Int { coordinator.notesDraftColorIndex }
+    private var editorNoteId: UUID? { coordinator.notesDraftNoteId }
     @State private var autoSaveTask: Task<Void, Never>?
 
     @Default(.enableNotes) var enableNotes
@@ -62,10 +66,10 @@ struct NotchNotesView: View {
                 ZStack {
                     if isEditingNewNote || selectedNoteId != nil {
                         NoteEditorView(
-                            title: $editorTitle,
-                            content: $editorContent,
-                            imageData: $editorImageData,
-                            colorIndex: $editorColorIndex,
+                            title: Binding(get: { editorTitle }, set: { coordinator.notesDraftTitle = $0 }),
+                            content: Binding(get: { editorContent }, set: { coordinator.notesDraftContent = $0 }),
+                            imageData: Binding(get: { editorImageData }, set: { coordinator.notesDraftImageData = $0 }),
+                            colorIndex: Binding(get: { editorColorIndex }, set: { coordinator.notesDraftColorIndex = $0 }),
                             onSave: saveNote,
                             onCancel: cancelEdit,
                             isNew: isEditingNewNote
@@ -112,15 +116,19 @@ struct NotchNotesView: View {
             }
         }
         .onDisappear {
+            // Persist unsaved note content when leaving the Notes tab.
+            // The editor draft state lives in the coordinator, so switching
+            // tabs and coming back will restore the in-progress edit.
             if isEditingNewNote || selectedNoteId != nil {
                 persistNote()
             }
-            coordinator.notesLayoutState = .list
+            // Note: do NOT reset notesLayoutState here — the user's list/editor
+            // view choice should persist across tab switches.
         }
-        .onChange(of: isEditingNewNote) { _, _ in
+        .onChange(of: coordinator.notesIsEditingNewNote) { _, _ in
             updateLayoutState()
         }
-        .onChange(of: selectedNoteId) { _, _ in
+        .onChange(of: coordinator.notesSelectedNoteId) { _, _ in
             updateLayoutState()
         }
         .onChange(of: enableClipboardManager) { _, _ in
@@ -132,13 +140,13 @@ struct NotchNotesView: View {
         .onChange(of: enableNotes) { _, _ in
             updateLayoutState()
         }
-        .onChange(of: editorContent) { _, _ in
+        .onChange(of: coordinator.notesDraftContent) { _, _ in
             scheduleAutoSave()
         }
-        .onChange(of: editorTitle) { _, _ in
+        .onChange(of: coordinator.notesDraftTitle) { _, _ in
             scheduleAutoSave()
         }
-        .onChange(of: editorColorIndex) { _, _ in
+        .onChange(of: coordinator.notesDraftColorIndex) { _, _ in
             scheduleAutoSave()
         }
     }
@@ -171,7 +179,7 @@ struct NotchNotesView: View {
         if let text = pasteboard.string(forType: .string) {
             if isEditingNewNote || selectedNoteId != nil {
                 // In editor: insert text at the end of content since we intercepted the shortcut
-                editorContent.append(text)
+                coordinator.notesDraftContent.append(text)
             } else {
                 // Not in editor: create a new note with the pasted text
                 createNoteWithContent(text)
@@ -182,45 +190,45 @@ struct NotchNotesView: View {
     private func updateImageData(_ data: Data) {
         withAnimation {
             if isEditingNewNote || selectedNoteId != nil {
-                editorImageData = data
+                coordinator.notesDraftImageData = data
             } else {
                 // If not editing, create a new note with this image
-                editorTitle = ""
-                editorContent = ""
-                editorImageData = data
-                editorColorIndex = 0
-                editorNoteId = UUID()
-                isEditingNewNote = true
+                coordinator.notesDraftTitle = ""
+                coordinator.notesDraftContent = ""
+                coordinator.notesDraftImageData = data
+                coordinator.notesDraftColorIndex = 0
+                coordinator.notesDraftNoteId = UUID()
+                coordinator.notesIsEditingNewNote = true
             }
         }
     }
 
     private func createNoteWithContent(_ content: String) {
-        editorTitle = ""
-        editorContent = content
-        editorImageData = nil
-        editorColorIndex = 0
-        editorNoteId = UUID()
-        isEditingNewNote = true
+        coordinator.notesDraftTitle = ""
+        coordinator.notesDraftContent = content
+        coordinator.notesDraftImageData = nil
+        coordinator.notesDraftColorIndex = 0
+        coordinator.notesDraftNoteId = UUID()
+        coordinator.notesIsEditingNewNote = true
     }
-    
+
     private func createNote() {
-        editorTitle = ""
-        editorContent = ""
-        editorImageData = nil
-        editorColorIndex = 0 // Default Yellow
-        editorNoteId = UUID()
-        isEditingNewNote = true
+        coordinator.notesDraftTitle = ""
+        coordinator.notesDraftContent = ""
+        coordinator.notesDraftImageData = nil
+        coordinator.notesDraftColorIndex = 0 // Default Yellow
+        coordinator.notesDraftNoteId = UUID()
+        coordinator.notesIsEditingNewNote = true
     }
-    
+
     private func selectNote(_ note: NoteItem) {
-        editorTitle = note.title
-        editorContent = note.content
-        editorImageData = note.getImageData() // Load from disk
-        editorColorIndex = note.colorIndex
-        editorNoteId = note.id
-        selectedNoteId = note.id
-        isEditingNewNote = false
+        coordinator.notesDraftTitle = note.title
+        coordinator.notesDraftContent = note.content
+        coordinator.notesDraftImageData = note.getImageData() // Load from disk
+        coordinator.notesDraftColorIndex = note.colorIndex
+        coordinator.notesDraftNoteId = note.id
+        coordinator.notesSelectedNoteId = note.id
+        coordinator.notesIsEditingNewNote = false
     }
     
     private func persistNote() {
@@ -300,19 +308,19 @@ struct NotchNotesView: View {
             if let firstImageURL = fileURLs.first(where: { imageExtensions.contains($0.pathExtension.lowercased()) }),
                let imageData = try? Data(contentsOf: firstImageURL) {
                 createNoteWithContent("")
-                editorImageData = imageData
+                coordinator.notesDraftImageData = imageData
                 return
             }
         }
-        
+
         // Priority 2: Direct image data
         if let tiffData = pasteboard.data(forType: .tiff) {
             createNoteWithContent("")
-            editorImageData = tiffData
+            coordinator.notesDraftImageData = tiffData
             return
         } else if let pngData = pasteboard.data(forType: .png) {
             createNoteWithContent("")
-            editorImageData = pngData
+            coordinator.notesDraftImageData = pngData
             return
         }
         
@@ -414,12 +422,12 @@ struct NotchNotesView: View {
     private func closeEditor() {
         autoSaveTask?.cancel()
         autoSaveTask = nil
-        isEditingNewNote = false
-        selectedNoteId = nil
+        coordinator.notesIsEditingNewNote = false
+        coordinator.notesSelectedNoteId = nil
         // Tiny delay to clear state after animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            editorTitle = ""
-            editorContent = ""
+            coordinator.notesDraftTitle = ""
+            coordinator.notesDraftContent = ""
         }
         updateLayoutState()
     }

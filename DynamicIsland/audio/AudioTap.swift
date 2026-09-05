@@ -199,8 +199,12 @@ enum AudioTapTargetMatcher {
 /// Singleton class for real-time audio capture from music apps
 class AudioTap: NSObject {
     static let shared = AudioTap()
-    
+
     let bridge = AudioBridge()
+    /// When true, the CoreAudio IO callback returns early without processing
+    /// audio. This lets us suspend the expensive FFT/smoothing work when the
+    /// notch is closed or the media tab isn't visible, without tearing down
+    /// the CATap/aggregate device (which is expensive to recreate).
     var isPaused: Bool = false
     private var displayMagnitudes: [Float] = Array(repeating: 0, count: 6)
 
@@ -210,12 +214,17 @@ class AudioTap: NSObject {
     private var ioProcID: AudioDeviceIOProcID? = nil
     private var captureIsRunning = false
     private var updateTimer: Timer?
-    
+
     // Serial queue to prevent race conditions
     private let audioQueue = DispatchQueue(label: "com.atoll.audiotap", qos: .userInitiated)
-    
+
     // Debounce restart requests
     private var pendingRestartWorkItem: DispatchWorkItem?
+
+    /// Tracks whether the notch is currently open with the media/home view
+    /// visible. Updated by `setNotchVisible(_:)`. When false, `isPaused` is
+    /// set true so the IO callback becomes a no-op.
+    private var notchVisible: Bool = false
 
     private let targetBundleIDs = [
         "com.apple.Music",
@@ -235,12 +244,36 @@ class AudioTap: NSObject {
         super.init()
     }
 
+    /// Called by the coordinator when the notch opens/closes or the media
+    /// tab becomes visible/hidden. When `visible` is false, the audio
+    /// callback is paused to save CPU. When it becomes true again, the
+    /// callback resumes — no need to recreate the CATap.
+    func setNotchVisible(_ visible: Bool) {
+        notchVisible = visible
+        // Only resume if capture is actually running (i.e. waveform enabled
+        // and a music app is playing). If capture was stopped because no app
+        // is playing, don't force-resume here.
+        if visible && captureIsRunning {
+            isPaused = false
+        } else if !visible {
+            isPaused = true
+            // Reset display magnitudes so the waveform doesn't show stale
+            // bars when the notch reopens.
+            DispatchQueue.main.async { [weak self] in
+                self?.displayMagnitudes = Array(repeating: 0, count: 6)
+            }
+        }
+    }
+
     @objc private func updateSmoothedMagnitudes() {
+        // Skip the smoothing timer work when paused — the display magnitudes
+        // are already reset to zero and there's nothing to smooth.
+        guard !isPaused else { return }
         let nsMagnitudes = bridge.getSmoothedMagnitudes()
         let targetLevels = nsMagnitudes.map { $0.floatValue }
-        
+
         let smoothingFactor: Float = 0.4
-        
+
         for i in 0..<min(targetLevels.count, displayMagnitudes.count) {
             let difference = targetLevels[i] - displayMagnitudes[i]
             displayMagnitudes[i] += difference * smoothingFactor

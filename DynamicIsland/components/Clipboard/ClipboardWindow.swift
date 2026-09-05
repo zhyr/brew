@@ -46,7 +46,10 @@ struct ClipboardWindowHeader: View {
     @Binding var selectedTab: ClipboardTab
     @Binding var searchText: String
     @ObservedObject var clipboardManager = ClipboardManager.shared
-    
+    @State private var isAdding = false
+    @State private var newItemText = ""
+    @FocusState private var isAddFieldFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             // Title and controls
@@ -54,13 +57,32 @@ struct ClipboardWindowHeader: View {
                 Image(systemName: "doc.on.clipboard")
                     .foregroundColor(.primary)
                     .font(.system(size: 16, weight: .medium))
-                
+
                 Text("Clipboard Manager")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.primary)
-                
+
                 Spacer()
-                
+
+                // Add button — toggles the manual input field
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isAdding.toggle()
+                    }
+                    if isAdding {
+                        newItemText = ""
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isAddFieldFocused = true
+                        }
+                    }
+                }) {
+                    Image(systemName: isAdding ? "xmark" : "plus.circle.fill")
+                        .foregroundColor(isAdding ? .secondary : .accentColor)
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help(isAdding ? "Cancel" : "Add custom text item")
+
                 // Clear button
                 Button(action: {
                     if selectedTab == .history {
@@ -79,6 +101,29 @@ struct ClipboardWindowHeader: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+
+            // Manual add input field — shown only when isAdding is true
+            if isAdding {
+                HStack(spacing: 8) {
+                    TextField("Type or paste text, then press Enter…", text: $newItemText)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .font(.system(size: 12))
+                        .focused($isAddFieldFocused)
+                        .onSubmit {
+                            commitAdd()
+                        }
+
+                    Button("Add") {
+                        commitAdd()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(newItemText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
             
             // Tab selector
             HStack(spacing: 0) {
@@ -120,6 +165,18 @@ struct ClipboardWindowHeader: View {
             .cornerRadius(6)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
+        }
+    }
+
+    /// Commits the manually entered text to the clipboard history and
+    /// collapses the input field.
+    private func commitAdd() {
+        let text = newItemText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        clipboardManager.addManualTextItem(text)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isAdding = false
+            newItemText = ""
         }
     }
 }

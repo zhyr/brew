@@ -18,7 +18,15 @@
 
 import Foundation
 
-let productPage = URL(string: "https://github.com/Ebullioscopic/DynamicIsland")!
-let sponsorPage = URL(string: "https://www.buymeacoffee.com/kryoscopic")!
+// brew.app project page
+let productPage = URL(string: "https://github.com/zhyr/brew")!
+
+// Related projects in the LLM-based Software Development Kit Suite
+struct RelatedProjects {
+    static let brew = URL(string: "https://github.com/zhyr/brew")!
+    static let perch = URL(string: "https://github.com/zhyr/Perch")!
+    static let alExporter = URL(string: "https://github.com/zhyr/Al-exporter")!
+    static let devKitSuite = URL(string: "https://github.com/zhyr/LLM-based-Software-Devlopment-Kit-Suite")!
+}
 
 

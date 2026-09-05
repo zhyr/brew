@@ -414,6 +414,10 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         // Force music information update when notch is opened
         MusicManager.shared.forceUpdate()
         focusClipboardTabIfNeeded()
+
+        // Resume audio tap callback now that the notch is visible — the
+        // CATap/aggregate device stays alive while paused, so this is cheap.
+        AudioTap.shared.setNotchVisible(true)
     }
     
     private func calculateDynamicNotchSize() -> CGSize {
@@ -445,6 +449,10 @@ class DynamicIslandViewModel: NSObject, ObservableObject {
         notchState = .closed
         resetScrollGestureSuppression()
         resetAutoCloseSuppression()
+
+        // Pause audio tap callback — the CATap stays alive but the IO proc
+        // becomes a no-op, saving CPU when the notch is closed.
+        AudioTap.shared.setNotchVisible(false)
 
         // Set the current view to shelf if it contains files and the user enables openShelfByDefault
         // Otherwise, if the user has not enabled openLastShelfByDefault, set the view to home

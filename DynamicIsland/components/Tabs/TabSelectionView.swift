@@ -34,8 +34,10 @@ struct TabModel: Identifiable {
     let accentColor: Color?
     /// When set, clicking this tab launches the external app with the given
     /// bundle identifier via NSWorkspace instead of switching the notch view.
-    /// Used to delegate features (e.g. notes) to standalone companion apps
-    /// such as Perch (栖痕, https://github.com/zhyr/Perch) by zhyr.
+    /// Used to delegate features to standalone companion apps
+    /// (e.g. Perch, https://github.com/zhyr/Perch, by zhyr). Perch is exposed
+    /// via the Header TaskNote button instead of a tab — see
+    /// `DynamicIslandHeader.launchPerch()` for the LSUIElement-aware launch.
     let externalAppBundleID: String?
     /// Actual app icon image loaded from the app bundle. When set, the tab
     /// renders this image instead of the SF Symbol in `icon`.
@@ -59,6 +61,10 @@ struct TabSelectionView: View {
     @StateObject private var quickShareService = QuickShareService.shared
     @Default(.quickShareProvider) private var quickShareProvider
     @State private var showQuickSharePopover = false
+
+    /// Briefly set to a tab's id after clicking an external-app tab, to
+    /// flash a visual acknowledgment (since the notch doesn't switch views).
+    @State private var lastExternalAppClickID: String?
     @Default(.enableTimerFeature) var enableTimerFeature
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableColorPickerFeature) var enableColorPickerFeature
@@ -109,14 +115,10 @@ struct TabSelectionView: View {
             tabsArray.append(TabModel(label: "Usage", icon: "chart.bar.doc.horizontal", view: .llmUsage))
         }
 
-        // Perch (栖痕) — unified companion app tab for notes/recording.
-        // Replaces the old in-notch Notes and Clipboard tabs. Clicking launches
-        // the Perch app via NSWorkspace (native macOS sticky notes by zhyr —
-        // https://github.com/zhyr/Perch). Only shows when Perch is installed.
-        // Uses .home view so the notch never opens the clipboard/notes view.
-        if let perchURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.local.perch") {
-            tabsArray.append(TabModel(label: "Perch", icon: "note.text", view: .home, externalAppBundleID: "com.local.perch", appIcon: NSWorkspace.shared.icon(forFile: perchURL.path)))
-        }
+        // Perch is exposed as a Header button next to the TaskNote button
+        // (see DynamicIslandHeader.launchPerch), not as a tab — the Perch
+        // companion app is LSUIElement and needs special activation logic
+        // that doesn't fit a tab click handler.
         if Defaults[.enableTerminalFeature] {
             tabsArray.append(TabModel(label: "Terminal", icon: "apple.terminal", view: .terminal))
         }
@@ -143,14 +145,33 @@ struct TabSelectionView: View {
             ForEach(Array(tabs.enumerated()), id: \.element.id) { idx, tab in
                 let isSelected = isSelected(tab)
                 let activeAccent = tab.accentColor ?? .white
+                // Flash the tab briefly after clicking an external-app tab so
+                // the user gets visual feedback that the click registered.
+                let isFlashing = (lastExternalAppClickID == tab.id)
 
                 // Render the tab button
-                TabButton(label: tab.label, icon: tab.icon, selected: isSelected, appIcon: tab.appIcon) {
-                    // External app launcher tabs (e.g. Perch) open the companion
-                    // app via NSWorkspace and do not switch the notch view.
+                TabButton(label: tab.label, icon: tab.icon, selected: isSelected || isFlashing, appIcon: tab.appIcon) {
+                    // External app launcher tabs open a companion app via
+                    // NSWorkspace and don't switch the notch view. The bundle
+                    // ID lookup runs on every click — cheap, but most tabs in
+                    // this view are internal notches so this branch is rare.
+                    // .activates is required so the companion app is brought
+                    // to the foreground when the user clicks its tab.
                     if let bundleID = tab.externalAppBundleID,
                        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-                        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+                        let config = NSWorkspace.OpenConfiguration()
+                        config.activates = true
+                        NSWorkspace.shared.openApplication(at: url, configuration: config)
+                        // Brief flash to acknowledge the click — the app
+                        // itself doesn't get "selected" in the notch.
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            lastExternalAppClickID = tab.id
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.easeIn(duration: 0.2)) {
+                                lastExternalAppClickID = nil
+                            }
+                        }
                         return
                     }
                     if tab.view == .extensionExperience {

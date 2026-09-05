@@ -448,6 +448,22 @@ class ClipboardManager: ObservableObject {
         saveHistoryToDefaults()
     }
     
+    /// Manually add a text item to the clipboard history.
+    ///
+    /// Used by the "Add" button in the Clipboard Manager window so users can
+    /// type or paste custom snippets (e.g. commonly used commands, email
+    /// templates) directly into history without going through the system
+    /// pasteboard.
+    ///
+    /// - Parameter text: The text content to store. Whitespace-only strings
+    ///   are ignored.
+    func addManualTextItem(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let item = ClipboardItem(stringData: trimmed, type: .text)
+        addToHistory(item)
+    }
+
     func clearHistory() {
         // Clean up all associated files
         for item in clipboardHistory {

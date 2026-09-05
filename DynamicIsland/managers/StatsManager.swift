@@ -438,6 +438,11 @@ class StatsManager: ObservableObject {
     private var shouldMonitorForStats: Bool = false
     private var lastNotchState: String = "closed"
     private var lastCurrentView: String = "other"
+    /// When true the monitoring timer keeps running but skips the expensive
+    /// `updateSystemStats()` callback. This avoids tearing down and
+    /// re-initialising all baseline state (network/disk counters, CPU info
+    /// mach ports) every time the user switches away from the Stats tab.
+    private var isMonitoringPaused: Bool = false
     
     // Network monitoring state
     private var previousNetworkStats: (bytesIn: UInt64, bytesOut: UInt64) = (0, 0)
@@ -505,7 +510,7 @@ class StatsManager: ObservableObject {
     }
     
     deinit {
-        stopMonitoring()
+        teardownMonitoring()
         delayedStartTimer?.invalidate()
         delayedStopTimer?.invalidate()
     }
@@ -549,44 +554,63 @@ class StatsManager: ObservableObject {
     
     // MARK: - Public Monitoring Controls
     func startMonitoring() {
+        // If already monitoring but paused, just resume — no need to tear
+        // down and rebuild the baseline state.
+        if isMonitoring && isMonitoringPaused {
+            isMonitoringPaused = false
+            // Reset timestamp so speed calculations don't use a stale delta.
+            previousTimestamp = Date()
+            let initialStats = getNetworkStats()
+            previousNetworkStats = initialStats
+            let initialDiskStats = getDiskStats()
+            previousDiskStats = initialDiskStats
+            Task { @MainActor in
+                self.updateSystemStats()
+            }
+            return
+        }
         guard !isMonitoring else { return }
-        
-        print("StatsManager: Starting monitoring...")
-        
+
         // Reset baseline for accurate measurement
         let initialStats = getNetworkStats()
         previousNetworkStats = initialStats
-        
+
         let initialDiskStats = getDiskStats()
         previousDiskStats = initialDiskStats
-        
+
         previousTimestamp = Date()
-        
+
         isMonitoring = true
         lastUpdated = Date()
         networkTotals = .zero
         diskTotals = .zero
-        
+
         scheduleMonitoringTimer()
 
         Task { @MainActor in
             self.updateSystemStats()
         }
-        
-        print("StatsManager: Monitoring started")
     }
-    
+
     func stopMonitoring() {
         guard isMonitoring else { return }
-        
-        // Clean up all timers
+
+        // Pause instead of tearing down: keep the timer and baseline state
+        // alive so resuming is instant. The timer callback checks
+        // isMonitoringPaused and skips the expensive update.
+        isMonitoringPaused = true
+    }
+
+    /// Fully tear down monitoring state. Called only from deinit or when the
+    /// app is about to quit. Use `stopMonitoring()` for transient pauses.
+    private func teardownMonitoring() {
         monitoringTimer?.invalidate()
         monitoringTimer = nil
         delayedStartTimer?.invalidate()
         delayedStopTimer?.invalidate()
-        
+
         isMonitoring = false
-        print("StatsManager: Monitoring stopped")
+        isMonitoringPaused = false
         cachedProcessStats.removeAll()
         lastProcessStatsUpdate = .distantPast
         isProcessRefreshInFlight = false
@@ -620,6 +644,9 @@ class StatsManager: ObservableObject {
 
         monitoringTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
+            // Skip the expensive update when paused — the timer stays alive
+            // so resuming is instant.
+            guard !self.isMonitoringPaused else { return }
 
             Task { @MainActor in
                 self.updateSystemStats()

@@ -134,6 +134,18 @@ class DynamicIslandViewCoordinator: ObservableObject {
     @Published var statsSecondRowExpansion: CGFloat = 1
     @Published var notesLayoutState: NotesLayoutState = .list
     @Published var selectedExtensionExperienceID: String?
+
+    // MARK: - Notes editor draft state
+    // These are stored in the coordinator (not @State) so that switching
+    // tabs and coming back doesn't lose unsaved editor content. The view
+    // itself is rebuilt on tab switch, which would reset @State.
+    @Published var notesDraftTitle: String = ""
+    @Published var notesDraftContent: String = ""
+    @Published var notesDraftImageData: Data? = nil
+    @Published var notesDraftColorIndex: Int = 0
+    @Published var notesDraftNoteId: UUID? = nil
+    @Published var notesIsEditingNewNote: Bool = false
+    @Published var notesSelectedNoteId: UUID? = nil
     
     
     @AppStorage("firstLaunch") var firstLaunch: Bool = true

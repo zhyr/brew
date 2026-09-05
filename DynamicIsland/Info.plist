@@ -8,13 +8,39 @@
 	<string>AppIcon</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>brew.app uses AppleScripts to control Spotify, Apple Music, and Notes.</string>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>brew.app uses Apple Music to fetch animated artwork for the lock screen wallpaper.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>brew.app needs audio capture permission to display the real-time music waveform visualizer.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>brew.app needs Bluetooth access to detect when audio devices connect and display their battery status in the HUD.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>brew.app needs calendar access to show your events inside the notch.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>brew.app needs calendar access for Calendar Mode.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>brew.app needs camera access for Mirror mode.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>brew.app needs access to save screenshots to your desktop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>brew.app needs access to save and read shelf dragged files.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>brew.app needs access to read files in the downloads folder.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>brew.app uses your location to display accurate lock screen weather.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>brew.app uses your location to display accurate lock screen weather.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>brew.app needs microphone access to record voice questions for the AI assistant feature.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>brew.app needs Reminders access to show your reminders.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>brew.app needs Reminders access to show your reminders.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>brew.app needs screen recording permission to capture screenshots for the AI assistant feature.</string>
 	<key>SUEnableAutomaticChecks</key>

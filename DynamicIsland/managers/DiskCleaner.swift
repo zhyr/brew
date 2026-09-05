@@ -91,6 +91,7 @@ final class DiskCleaner: ObservableObject {
     @Published private(set) var lastResult: CleanupResult?
 
     private var pollTimer: Timer?
+    private var isPaused = false
     private var currentTask: Process?
 
     private init() {
@@ -147,19 +148,24 @@ final class DiskCleaner: ObservableObject {
     }
 
     /// Start the 5s polling timer. Safe to call multiple times — duplicates
-    /// are ignored.
+    /// are ignored. If the timer already exists but is paused, this resumes it.
     func startPolling() {
-        guard pollTimer == nil else { return }
+        guard pollTimer == nil else {
+            isPaused = false
+            return
+        }
         refreshDiskUsage()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            self?.refreshDiskUsage()
+            guard let self, !self.isPaused else { return }
+            self.refreshDiskUsage()
         }
     }
 
-    /// Stop polling. Called when the Stats tab disappears.
+    /// Pause polling instead of invalidating the timer. Keeps the timer alive
+    /// so resuming is instant and avoids unnecessary statfs calls when the
+    /// Stats tab isn't visible.
     func stopPolling() {
-        pollTimer?.invalidate()
-        pollTimer = nil
+        isPaused = true
     }
 
     // MARK: - Cleanup execution
