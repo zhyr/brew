@@ -67,15 +67,19 @@ struct TaskNoteSyncBadge: View {
 /// flips.
 struct TaskNoteICloudSyncToggle: View {
     @ObservedObject private var manager = TaskReminderManager.shared
-    @AppStorage("BrewTaskNoteUseiCloud") private var syncEnabledAppStorage: Bool = true
+    /// Mirrors the manager's opt-out flag (UserDefaults key
+    /// `BrewTaskNoteUseiCloud`). The stored value is the *opt-out* state:
+    /// `false` (default) = sync enabled, `true` = local-only. The Toggle
+    /// binding inverts it so the switch reads as "sync on/off".
+    @AppStorage("BrewTaskNoteUseiCloud") private var optedOutStorage: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: Binding(
-                get: { !syncEnabledAppStorage },
-                set: { newValue in
-                    let optOut = newValue
-                    syncEnabledAppStorage = optOut
+                get: { !optedOutStorage },
+                set: { isOn in
+                    let optOut = !isOn
+                    optedOutStorage = optOut
                     manager.userOptedOutOfiCloud = optOut
                 }
             )) {
@@ -111,7 +115,7 @@ struct TaskNoteICloudSyncToggle: View {
     }
 
     private var toggleHelp: String {
-        syncEnabledAppStorage
+        optedOutStorage
             ? "Tasks are stored locally on this Mac only and will not sync to iCloud. Useful if you want to keep this Mac's tasks separate."
             : "Tasks are stored in your iCloud Drive. Every Mac signed into the same iCloud account sees the same data."
     }
