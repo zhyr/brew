@@ -50,12 +50,12 @@ private let kUserOptedOutOfiCloudKey = "BrewTaskNoteOptedOutOfICloud"
 /// repeat the import on subsequent launches.
 private let kLegacyLocalMigrationDoneKey = "BrewTaskNoteLegacyLocalMigrationDone"
 
-/// A single task/reminder item.
+/// A single sub-item nested under a task.
 ///
-/// Tasks are lightweight to-do entries shown in the floating reminder panel.
-/// They are intentionally distinct from full notes (handled by Perch) — tasks
-/// are for quick "remember to do X" entries that can be checked off.
-struct TaskReminder: Identifiable, Codable, Equatable {
+/// Sub-items represent smaller breakdown steps of a parent task. They share
+/// the same completion semantics as tasks but do not have their own sub-items
+/// (nesting is one level deep to keep the model simple).
+struct TaskSubItem: Identifiable, Codable, Equatable {
     let id: UUID
     var title: String
     var createdAt: Date
@@ -68,6 +68,51 @@ struct TaskReminder: Identifiable, Codable, Equatable {
         self.createdAt = createdAt
         self.completed = completed
         self.completedAt = completedAt
+    }
+}
+
+/// A single task/reminder item.
+///
+/// Tasks are lightweight to-do entries shown in the floating reminder panel.
+/// They are intentionally distinct from full notes (handled by Perch) — tasks
+/// are for quick "remember to do X" entries that can be checked off.
+///
+/// A task may carry a list of `subitems` — smaller breakdown steps. Completing
+/// a parent task automatically completes all of its sub-items; completing a
+/// sub-item does not affect the parent.
+struct TaskReminder: Identifiable, Codable, Equatable {
+    let id: UUID
+    var title: String
+    var createdAt: Date
+    var completed: Bool
+    var completedAt: Date?
+    var subitems: [TaskSubItem]
+
+    init(title: String, id: UUID = UUID(), createdAt: Date = Date(), completed: Bool = false, completedAt: Date? = nil, subitems: [TaskSubItem] = []) {
+        self.id = id
+        self.title = title
+        self.createdAt = createdAt
+        self.completed = completed
+        self.completedAt = completedAt
+        self.subitems = subitems
+    }
+
+    // MARK: Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, createdAt, completed, completedAt, subitems
+    }
+
+    /// Custom decoder so JSON files written before the `subitems` field
+    /// existed still load (defaulting to an empty array).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        completed = try container.decode(Bool.self, forKey: .completed)
+        completedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
+        subitems = try container.decodeIfPresent([TaskSubItem].self, forKey: .subitems) ?? []
     }
 }
 
@@ -250,10 +295,63 @@ final class TaskReminderManager: ObservableObject {
 
     /// Toggle the completion state of a task. Only the flag is changed;
     /// the record is never deleted.
+    ///
+    /// When a task is marked **complete**, all of its sub-items are
+    /// automatically marked complete as well. Uncompleting a task does not
+    /// touch its sub-items (they keep whatever state they had).
     func toggleCompleted(_ task: TaskReminder) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
         tasks[index].completed.toggle()
         tasks[index].completedAt = tasks[index].completed ? Date() : nil
+        // Cascade: completing the parent completes every sub-item.
+        if tasks[index].completed {
+            for subIndex in tasks[index].subitems.indices {
+                tasks[index].subitems[subIndex].completed = true
+                if tasks[index].subitems[subIndex].completedAt == nil {
+                    tasks[index].subitems[subIndex].completedAt = Date()
+                }
+            }
+        }
+        let updated = tasks[index]
+        ioQueue.async { [weak self] in
+            self?.saveTask(updated)
+        }
+    }
+
+    // MARK: - Sub-items
+
+    /// Append a new sub-item to the given task. Whitespace-only titles are
+    /// ignored.
+    func addSubItem(to task: TaskReminder, title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let subItem = TaskSubItem(title: trimmed)
+        tasks[index].subitems.append(subItem)
+        let updated = tasks[index]
+        ioQueue.async { [weak self] in
+            self?.saveTask(updated)
+        }
+    }
+
+    /// Toggle the completion state of a single sub-item. Completing a
+    /// sub-item does **not** affect the parent task's completion state.
+    func toggleSubItemCompleted(task: TaskReminder, subItem: TaskSubItem) {
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }),
+              let subIndex = tasks[index].subitems.firstIndex(where: { $0.id == subItem.id }) else { return }
+        tasks[index].subitems[subIndex].completed.toggle()
+        tasks[index].subitems[subIndex].completedAt =
+            tasks[index].subitems[subIndex].completed ? Date() : nil
+        let updated = tasks[index]
+        ioQueue.async { [weak self] in
+            self?.saveTask(updated)
+        }
+    }
+
+    /// Delete a single sub-item from its parent task.
+    func deleteSubItem(task: TaskReminder, subItem: TaskSubItem) {
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        tasks[index].subitems.removeAll { $0.id == subItem.id }
         let updated = tasks[index]
         ioQueue.async { [weak self] in
             self?.saveTask(updated)

@@ -205,7 +205,10 @@ struct TaskReminderPanelView: View {
                             task: task,
                             isHovered: hoveredTaskId == task.id,
                             onToggle: { manager.toggleCompleted(task) },
-                            onDelete: { manager.delete(task) }
+                            onDelete: { manager.delete(task) },
+                            onAddSubItem: { manager.addSubItem(to: task, title: $0) },
+                            onToggleSubItem: { manager.toggleSubItemCompleted(task: task, subItem: $0) },
+                            onDeleteSubItem: { manager.deleteSubItem(task: task, subItem: $0) }
                         ) { hoverId in
                             hoveredTaskId = hoverId
                         }
@@ -251,6 +254,9 @@ struct TaskRow: View {
     let isHovered: Bool
     let onToggle: () -> Void
     let onDelete: () -> Void
+    let onAddSubItem: (String) -> Void
+    let onToggleSubItem: (TaskSubItem) -> Void
+    let onDeleteSubItem: (TaskSubItem) -> Void
     let onHover: (UUID?) -> Void
 
     /// Shared formatter — creating a RelativeDateTimeFormatter per row per
@@ -262,7 +268,39 @@ struct TaskRow: View {
         return f
     }()
 
+    @State private var isAddingSubItem: Bool = false
+    @State private var subItemInputText: String = ""
+    @State private var hoveredSubItemId: UUID?
+    @FocusState private var isSubItemInputFocused: Bool
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            mainRow
+            if isAddingSubItem {
+                subItemInputField
+            }
+            if !task.subitems.isEmpty {
+                subItemsList
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(isHovered ? 0.06 : 0))
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovered in
+            onHover(isHovered ? task.id : nil)
+        }
+        .animation(.easeOut(duration: 0.15), value: isHovered)
+        .animation(.easeOut(duration: 0.15), value: isAddingSubItem)
+        .animation(.easeOut(duration: 0.15), value: task.subitems.count)
+    }
+
+    // MARK: Main row
+
+    private var mainRow: some View {
         HStack(spacing: 10) {
             // Checkbox
             Button(action: onToggle) {
@@ -287,31 +325,143 @@ struct TaskRow: View {
 
             Spacer(minLength: 4)
 
-            // Delete button (hover only)
+            // Action buttons (hover only)
+            if isHovered {
+                HStack(spacing: 8) {
+                    // Add sub-item button
+                    Button(action: {
+                        isAddingSubItem.toggle()
+                        if isAddingSubItem {
+                            isSubItemInputFocused = true
+                        }
+                    }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(isAddingSubItem ? Color.accentColor : .secondary)
+                            .frame(width: 18, height: 18)
+                            .background(
+                                Circle()
+                                    .fill(isAddingSubItem ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add sub-item")
+
+                    // Delete button
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity)
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    // MARK: Sub-item input
+
+    private var subItemInputField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.circle.fill")
+                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 12))
+
+            TextField("Add a sub-item…", text: $subItemInputText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focused($isSubItemInputFocused)
+                .onSubmit {
+                    commitSubItem()
+                }
+
+            Button("Add") {
+                commitSubItem()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(subItemInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .padding(.leading, 26)
+        .padding(.vertical, 4)
+    }
+
+    private func commitSubItem() {
+        let text = subItemInputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        onAddSubItem(text)
+        subItemInputText = ""
+        isAddingSubItem = false
+    }
+
+    // MARK: Sub-items list
+
+    private var subItemsList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(task.subitems) { subItem in
+                SubItemRow(
+                    subItem: subItem,
+                    isHovered: hoveredSubItemId == subItem.id,
+                    onToggle: { onToggleSubItem(subItem) },
+                    onDelete: { onDeleteSubItem(subItem) }
+                ) { hoverId in
+                    hoveredSubItemId = hoverId
+                }
+            }
+        }
+        .padding(.leading, 26)
+    }
+
+    private var timeString: String {
+        Self.relativeFormatter.localizedString(for: task.createdAt, relativeTo: Date())
+    }
+}
+
+// MARK: - Sub-item Row
+
+struct SubItemRow: View {
+    let subItem: TaskSubItem
+    let isHovered: Bool
+    let onToggle: () -> Void
+    let onDelete: () -> Void
+    let onHover: (UUID?) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Checkbox
+            Button(action: onToggle) {
+                Image(systemName: subItem.completed ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(subItem.completed ? Color.green : Color.secondary.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+
+            Text(subItem.title)
+                .font(.system(size: 12))
+                .foregroundStyle(subItem.completed ? .secondary : .primary)
+                .strikethrough(subItem.completed, color: .secondary)
+                .lineLimit(2)
+
+            Spacer(minLength: 4)
+
             if isHovered {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
-                        .font(.system(size: 11))
+                        .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .transition(.opacity)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(isHovered ? 0.06 : 0))
-        }
-        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
         .onHover { isHovered in
-            onHover(isHovered ? task.id : nil)
+            onHover(isHovered ? subItem.id : nil)
         }
         .animation(.easeOut(duration: 0.15), value: isHovered)
-    }
-
-    private var timeString: String {
-        Self.relativeFormatter.localizedString(for: task.createdAt, relativeTo: Date())
     }
 }
