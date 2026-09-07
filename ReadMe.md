@@ -35,6 +35,36 @@ Kit Suite（Compose / disk_maintenance）
 
 典型协作：眉梢在刘海统一调度；栖痕承载即时记录；疏引从 Finder 取径；Al-exporter 规范 agent 识别；Scaffold 在 IDE 内组 prompt。
 
+## 核心功能一览
+
+| 截图 | 功能 |
+| ---- | ---- |
+| ![App Launcher](Screenshots/app-launcher.png) | **App Launcher**：10 槽位自定义应用快捷方式，刘海一键启动 |
+| ![Agents](Screenshots/agents-llm-tasks.png) | **Agents / LLM 任务监控**：Trae / Cursor / Codex / WorkBuddy 的任务状态与运行卡片 |
+| ![Stats](Screenshots/disk-stats.png) | **磁盘与系统监控**：磁盘占用 statcard、系统/开发者垃圾清理 |
+| ![TaskNote](Screenshots/tasknote-perch.png) | **TaskNote 任务清单 + Perch 按钮**：刘海右上一行内协同 |
+
+### TaskNote 任务清单（内置）
+
+刘海内的轻量任务清单（quick "remember to do X"），独立于栖痕的完整笔记：
+
+- **存储**：按天一个 JSON 文件（`YYYY-MM-DD.json`），勾选只翻转 `completed` 标记、永不删记录，仅显式删除才移除数据
+- **iCloud Drive 同步**（默认开启）：数据存放于 iCloud 容器 `iCloud.com.brew.app` 的 `Documents/task-note/`，同一 Apple ID 的多台 Mac 自动共享
+  - 写入经 `NSFileCoordinator(.forMerging)` 协调，读取经 `.forReading`，与 Finder / FileProvider 编辑不冲突
+  - `NSMetadataQuery` 监听远端变更，另一台 Mac 上的修改自动拉取；启动/切换时按任务 `id` 去重合并
+  - 设置中可关闭同步（数据回落到 `~/Documents/brew/task-note/`，本地保留不删）；登录/登出 iCloud 运行中即时切换，迁移失败自动保底重试
+  - 同步状态徽标实时显示：已同步 / 未登录 / 本地模式 / 下载中
+- **与 Perch 的分工**：TaskNote 是"待办勾选清单"；Perch 是"内容记录与 LLM 上下文回喂"（见下）
+
+### Perch（栖痕）— LLM 上下文记事本
+
+[栖痕 Perch](https://github.com/zhyr/Perch) 是独立的菜单栏记录树 app，在本工具链中承担 **LLM 上下文记事本** 角色：剪贴板历史、提示词片段、会话上下文的分层记录，需要时把记录"回喂"给 Agent / 对话 / 终端。眉梢与其协同：
+
+- 安装栖痕后，刘海 header 右侧出现 **栖痕图标按钮**（带真实 app 图标），点击即唤起/前置栖痕面板（`LSUIElement` 激活走 `NSRunningApplication.activate`，冷启动后 AppleScript 兜底前置）
+- 同时 Notes tab 变为 Perch tab，tab 与 header 按钮两条路径均可触达
+- 未安装时按钮隐藏、tab 回退为 Clipboard，无副作用
+- 配合疏引（Vestige）从 Finder 取得的路径，可直接粘贴进栖痕条目作为上下文素材
+
 ## 项目来源与协议
 
 ### 上游仓库克隆与引用声明
@@ -158,15 +188,16 @@ boring.notch (GPL v3)
 
 - Tab 非激活时停止轮询以节省 CPU
 
-### 8. 笔记功能委托栖痕（Perch）
+### 8. 笔记功能委托栖痕（Perch）+ Header 协同按钮
 
-将 brew 内置的 Notes/Clipboard 功能替换为启动外部 [栖痕（Perch）](https://github.com/zhyr/Perch) app：
+将 brew 内置的 Notes/Clipboard 功能替换为启动外部 [栖痕（Perch）](https://github.com/zhyr/Perch) app（LLM 上下文记事本，见上文"核心功能一览"）：
 
 - 安装栖痕后，brew 的 Notes tab 自动变为 Perch tab
+- 刘海 header 右侧新增栖痕图标按钮（读取真实 app 图标缓存），点击唤起/前置栖痕面板
 - 点击该 tab 通过 `NSWorkspace.openApplication` 启动栖痕
 - 使用 `view: .home` 避免触发内置 clipboard 视图
 - `isSelected` 对外部 app tab 返回 false，notch 不会因点击而打开
-- 栖痕未安装时回退显示 Clipboard tab
+- 栖痕未安装时回退显示 Clipboard tab，header 按钮隐藏
 
 ### 9. 沙箱禁用
 
@@ -177,6 +208,22 @@ boring.notch (GPL v3)
 - 保留 `DynamicIsland.entitlements` 中的摄像头、日历、Apple Events、辅助功能、屏幕录制等权限声明
 
 ## 构建与安装
+
+### 直接下载安装（推荐）
+
+从 [GitHub Releases](https://github.com/zhyr/brew/releases) 下载最新 `brew.app-<版本>.zip`：
+
+```bash
+unzip brew.app-2.3.4.zip -d /tmp/brew-dl
+sudo cp -R /tmp/brew-dl/brew.app /Applications/brew.app
+xattr -dr com.apple.quarantine /Applications/brew.app   # adhoc 签名，首次使用去除隔离属性
+open /Applications/brew.app
+```
+
+可选搭配（均独立安装）：
+
+- [栖痕 Perch](https://github.com/zhyr/Perch) — LLM 上下文记事本，装后刘海出现协同按钮
+- [Ollama](https://ollama.ai) — ScreenAssistant 本地推理
 
 ### 环境要求
 
