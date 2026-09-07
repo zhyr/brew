@@ -116,6 +116,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: NSWindowController?
     private var cancellables = Set<AnyCancellable>()
     private var windowsHiddenForLock = false
+    /// Perch 通过分布式通知请求打开 TaskNote 的监听 token
+    private var externalTaskNoteObserverToken: NSObjectProtocol?
     private var optionalShortcutHandlersRegistered = false
     private weak var focusWithoutDevToolsMenuItem: NSMenuItem?
     private weak var focusUseDevToolsMenuItem: NSMenuItem?
@@ -158,7 +160,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        _ = handleIncomingShelfURLs(urls)
+        if handleIncomingShelfURLs(urls) { return }
+
+        // Perch 通过 atoll://tasknote 打开 TaskNote
+        guard let url = urls.first,
+              url.scheme?.lowercased() == "atoll",
+              (url.host?.lowercased() == "tasknote" || url.path.lowercased().contains("tasknote")) else {
+            return
+        }
+        openTaskNoteFromExternalRequest()
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
@@ -178,6 +188,98 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         return true
+    }
+
+    // MARK: - 从 Perch 打开 TaskNote（外部集成）
+
+    /// Perch 通过分布式通知请求打开 TaskNote 窗口
+    private func registerExternalTaskNoteHandlers() {
+        guard externalTaskNoteObserverToken == nil else { return }
+        externalTaskNoteObserverToken = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.zhyr.perch.openTaskNote"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.openTaskNoteFromExternalRequest()
+        }
+    }
+
+    /// 打开 TaskNote（任务提醒）窗口。行为与点击 notch 头部 TaskNote 一致，
+    /// 但总是“打开”而非切换关闭，并适配 clipboardDisplayMode 的四种展示方式。
+    @objc func openTaskNoteFromExternalRequest() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard Defaults[.enableClipboardManager] else { return }
+
+            if !ClipboardManager.shared.isMonitoring {
+                ClipboardManager.shared.startMonitoring()
+            }
+
+            NSApp.activate(ignoringOtherApps: true)
+
+            switch Defaults[.clipboardDisplayMode] {
+            case .panel:
+                ClipboardPanelManager.shared.showClipboardPanel()
+            case .popover:
+                self.openTaskNotePopoverIfNeeded()
+            case .separateTab:
+                self.showTaskNoteTabOnPrimaryNotch()
+            case .notchTab:
+                self.showClipboardTabOnActiveNotch()
+            }
+        }
+    }
+
+    private func openTaskNotePopoverIfNeeded() {
+        let activeVM = activeNotchViewModel()
+        let wasClosed = activeVM.notchState == .closed
+        cancelPendingNotchAutoClose()
+        if wasClosed {
+            activeVM.open()
+        }
+        // 弹出层锚定在 notch 头部的 TaskNote 按钮上：需要等 notch 展开、
+        // header 挂载后再触发 popover。
+        DispatchQueue.main.asyncAfter(deadline: .now() + (wasClosed ? 0.5 : 0.1)) { [weak self] in
+            guard let self else { return }
+            if !activeVM.isClipboardPopoverActive {
+                self.coordinator.toggleClipboardPopover()
+            }
+        }
+    }
+
+    /// separateTab 模式：在主要屏幕的 notch 中展示 .notes 任务页
+    private func showTaskNoteTabOnPrimaryNotch() {
+        cancelPendingNotchAutoClose()
+        if vm.notchState == .closed {
+            vm.open()
+        }
+        if coordinator.currentView != .notes {
+            coordinator.currentView = .notes
+        }
+    }
+
+    /// notchTab 模式：在鼠标所在屏幕的 notch 中展示剪贴板任务页
+    private func showClipboardTabOnActiveNotch() {
+        let activeVM = activeNotchViewModel()
+        cancelPendingNotchAutoClose()
+        if activeVM.notchState == .closed {
+            activeVM.open()
+        }
+        if coordinator.currentView != .clipboard {
+            coordinator.currentView = .clipboard
+        }
+    }
+
+    private func activeNotchViewModel() -> DynamicIslandViewModel {
+        if Defaults[.showOnAllDisplays] {
+            let mouseLocation = NSEvent.mouseLocation
+            for screen in NSScreen.screens where screen.frame.contains(mouseLocation) {
+                if let screenViewModel = viewModels[screen] {
+                    return screenViewModel
+                }
+            }
+        }
+        return vm
     }
     
     /// Setup observers for music player state changes to restart AudioTap capture
@@ -681,6 +783,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         LockScreenManager.shared.configure(viewModel: vm)
         extensionXPCServiceHost.start()
         extensionRPCServer.start()
+
+        // 支持 Perch 顶部 TaskNote 按钮唤起本应用的 TaskNote 窗口
+        registerExternalTaskNoteHandlers()
         
         // Migrate legacy progress bar settings
         Defaults.Keys.migrateProgressBarStyle()
