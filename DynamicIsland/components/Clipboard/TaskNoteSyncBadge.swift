@@ -68,10 +68,10 @@ struct TaskNoteSyncBadge: View {
 struct TaskNoteICloudSyncToggle: View {
     @ObservedObject private var manager = TaskReminderManager.shared
     /// Mirrors the manager's opt-out flag (UserDefaults key
-    /// `BrewTaskNoteUseiCloud`). The stored value is the *opt-out* state:
-    /// `false` (default) = sync enabled, `true` = local-only. The Toggle
-    /// binding inverts it so the switch reads as "sync on/off".
-    @AppStorage("BrewTaskNoteUseiCloud") private var optedOutStorage: Bool = false
+    /// `BrewTaskNoteOptedOutOfICloud`). The stored value is the *opt-out*
+    /// state: `false` (default) = sync enabled, `true` = local-only. The
+    /// Toggle binding inverts it so the switch reads as "sync on/off".
+    @AppStorage("BrewTaskNoteOptedOutOfICloud") private var optedOutStorage: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

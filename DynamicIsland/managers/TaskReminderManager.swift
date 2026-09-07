@@ -32,11 +32,18 @@ private let kBrewICCloudContainerID = "iCloud.com.brew.app"
 private let kBrewICCloudSubpath = "task-note"
 
 /// UserDefaults flag — user may opt out of iCloud even when signed in.
-/// When `false`, data is stored in `~/Documents/brew/task-note/` (local only,
-/// never uploaded). When `true`, data is stored in the iCloud ubiquity
-/// container; if the user is signed out of iCloud the manager transparently
-/// falls back to local storage and exposes that through `iCloudSyncState`.
-private let kUserOptedOutOfiCloudKey = "BrewTaskNoteUseiCloud"
+/// The **stored value is the opt-out state**: `false` (default) = sync
+/// enabled, `true` = local-only. When sync is disabled, data is stored in
+/// `~/Documents/brew/task-note/` (local only, never uploaded). When enabled,
+/// data is stored in the iCloud ubiquity container; if the user is signed
+/// out of iCloud the manager transparently falls back to local storage and
+/// exposes that through `iCloudSyncState`.
+///
+/// Named with the unambiguous `OptedOut` suffix — the earlier key name
+/// (`BrewTaskNoteUseiCloud`) described the *opposite* polarity and older
+/// builds wrote `true` to mean "sync on", so reusing it would silently
+/// disable sync for anyone upgrading. The old key is ignored outright.
+private let kUserOptedOutOfiCloudKey = "BrewTaskNoteOptedOutOfICloud"
 
 /// Legacy local storage flag — set after the one-shot migration from
 /// `~/Documents/brew/task-note/` into the new home completes, so we don't
@@ -127,7 +134,9 @@ final class TaskReminderManager: ObservableObject {
     @Published var userOptedOutOfiCloud: Bool {
         didSet {
             UserDefaults.standard.set(userOptedOutOfiCloud, forKey: kUserOptedOutOfiCloudKey)
+            let optedOut = userOptedOutOfiCloud
             ioQueue.async { [weak self] in
+                self?.refreshSyncState(optedOut: optedOut)
                 self?.rebuildStorageAfterToggle()
             }
         }
@@ -172,11 +181,40 @@ final class TaskReminderManager: ObservableObject {
 
         ioQueue.async { [weak self] in
             guard let self else { return }
-            self.refreshSyncState()
+            self.refreshSyncState(optedOut: UserDefaults.standard.bool(forKey: kUserOptedOutOfiCloudKey))
             self.rebuildStorageAfterToggle() // resolves directory, migrates legacy if first-launch
             self.reconcileAtStartup()
             self.startWatchingIfNeeded()
         }
+
+        // iCloud sign-in/sign-out after launch: re-resolve storage, migrate,
+        // and refresh the UI-facing state. Without this, signing into iCloud
+        // while the app runs would leave TaskNote on local storage until
+        // relaunch (and the badge stuck on "signed out").
+        identityChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSUbiquityIdentityDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            let optedOut = self.userOptedOutOfiCloud
+            self.ioQueue.async {
+                self.refreshSyncState(optedOut: optedOut)
+                self.rebuildStorageAfterToggle()
+                self.reconcileAtStartup()
+                self.startWatchingIfNeeded()
+            }
+        }
+    }
+
+    /// Observer for iCloud account changes (sign in / sign out) while running.
+    private var identityChangeObserver: NSObjectProtocol?
+
+    deinit {
+        if let identityChangeObserver {
+            NotificationCenter.default.removeObserver(identityChangeObserver)
+        }
+        stopWatching()
     }
 
     /// One-time migration: tasks were previously stored under the UserDefaults
@@ -263,16 +301,25 @@ final class TaskReminderManager: ObservableObject {
     /// their old tasks vanish.
     private func rebuildStorageAfterToggle() {
         let priorDirectory = resolvedStorageDirectory
-        let newDir = resolveStorageDirectory()
+        let newDir = resolveStorageDirectory(
+            optedOut: UserDefaults.standard.bool(forKey: kUserOptedOutOfiCloudKey)
+        )
         if newDir == priorDirectory { return }
         ensureDirectoryExists(at: newDir)
         // If we have never migrated legacy local files and we are switching
         // INTO iCloud, copy legacy files up so the user sees their old tasks.
+        // Only mark the migration done (and delete the legacy copies) when
+        // every file copied successfully — deleting after a partial copy
+        // would lose data; leaving the flag unset retries on next launch.
         if !UserDefaults.standard.bool(forKey: kLegacyLocalMigrationDoneKey)
             && isUbiquityContainer(newDir) {
-            _ = copyContents(of: legacyLocalDirectory, into: newDir)
-            UserDefaults.standard.set(true, forKey: kLegacyLocalMigrationDoneKey)
-            _ = removeContents(of: legacyLocalDirectory)
+            if copyContents(of: legacyLocalDirectory, into: newDir) {
+                UserDefaults.standard.set(true, forKey: kLegacyLocalMigrationDoneKey)
+                _ = removeContents(of: legacyLocalDirectory)
+            } else {
+                os_log(.error, log: taskReminderLog,
+                       "Legacy→iCloud migration incomplete — keeping local files to retry next launch")
+            }
         }
         // If we are switching OUT of iCloud into local-only, copy current
         // contents of iCloud back to local mirror so the local copy stays
@@ -291,8 +338,8 @@ final class TaskReminderManager: ObservableObject {
     /// 3. Otherwise — fall back to local Documents (and surface `.signedOut` in UI).
     ///
     /// Must be called from `ioQueue`.
-    private func resolveStorageDirectory() -> URL {
-        if userOptedOutOfiCloud {
+    private func resolveStorageDirectory(optedOut: Bool) -> URL {
+        if optedOut {
             return legacyLocalDirectory
         }
         if let ubiquityDir = ubiquityContainerTaskNoteDirectory() {
@@ -322,10 +369,10 @@ final class TaskReminderManager: ObservableObject {
         url.path.contains("Mobile Documents") && url.path.contains("iCloud")
     }
 
-    private func refreshSyncState() {
+    private func refreshSyncState(optedOut: Bool) {
         let token = FileManager.default.ubiquityIdentityToken
         let state: TaskReminderSyncState
-        if userOptedOutOfiCloud {
+        if optedOut {
             state = .temporarilyLocal
         } else if token == nil {
             state = .signedOut
@@ -469,7 +516,7 @@ final class TaskReminderManager: ObservableObject {
         var coordError: NSError?
         coordinator.coordinate(
             readingItemAt: url,
-            options: [.forReading, .resolvesSymbolicLink],
+            options: [.resolvesSymbolicLink],
             error: &coordError
         ) { readURL in
             guard let data = try? Data(contentsOf: readURL) else { return }
@@ -522,9 +569,12 @@ final class TaskReminderManager: ObservableObject {
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
         ) else {
-            DispatchQueue.main.async { [weak self] in
-                self?.tasks = []
-            }
+            // Directory unreadable (e.g. the iCloud container exists but its
+            // Documents folder has not been materialised yet). Keep the
+            // in-memory list — wiping it would flash the empty state and
+            // hide tasks that are still on disk.
+            os_log(.info, log: taskReminderLog,
+                   "Storage directory not readable yet — keeping in-memory tasks: %{public}@", dir.path)
             return
         }
         var allTasks: [TaskReminder] = []

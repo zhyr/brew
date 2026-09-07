@@ -68,7 +68,7 @@ final class TabOrderTests: XCTestCase {
         // visible tab chip in `TabSelectionView`.
         let order = DynamicIslandViewCoordinator.allTabsInOrder
         let expectedMembers: Set<NotchViews> = [
-            .appLauncher, .home, .shelf, .timer, .stats, .llmUsage,
+            .appLauncher, .agentActivity, .home, .shelf, .timer, .stats, .llmUsage,
             .colorPicker, .notes, .clipboard, .terminal, .extensionExperience
         ]
         let actualMembers = Set(order)

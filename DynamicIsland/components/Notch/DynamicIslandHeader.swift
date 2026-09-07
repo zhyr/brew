@@ -475,23 +475,26 @@ private extension DynamicIslandHeader {
     }
 
     private func activatePerchViaAppleScript() {
-        let script = NSAppleScript(source: """
-        tell application "Perch"
-            activate
-        end tell
-        """)
-        // `executeAndReturnError(_:)` writes an `NSDictionary?` on failure;
-        // `NSErr` is not a real type.
-        var errorInfo: NSDictionary?
-        script?.executeAndReturnError(&errorInfo)
-        if let errorInfo {
-            let message = errorInfo[NSLocalizedDescriptionKey] as? String ?? errorInfo.description
-            os_log(
-                .error,
-                log: perchLaunchLog,
-                "AppleScript activate Perch failed: %{public}@",
-                message
-            )
+        // `executeAndReturnError` is a synchronous Apple Event round-trip
+        // (can take hundreds of ms if Perch is mid-launch) — never run it
+        // on the main thread.
+        DispatchQueue.global(qos: .utility).async {
+            let script = NSAppleScript(source: """
+            tell application "Perch"
+                activate
+            end tell
+            """)
+            var errorInfo: NSDictionary?
+            script?.executeAndReturnError(&errorInfo)
+            if let errorInfo {
+                let message = errorInfo[NSLocalizedDescriptionKey] as? String ?? errorInfo.description
+                os_log(
+                    .error,
+                    log: perchLaunchLog,
+                    "AppleScript activate Perch failed: %{public}@",
+                    message
+                )
+            }
         }
     }
 

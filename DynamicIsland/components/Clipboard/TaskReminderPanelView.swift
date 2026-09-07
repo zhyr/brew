@@ -35,7 +35,6 @@ struct TaskReminderPanelView: View {
     var body: some View {
         VStack(spacing: 10) {
             header
-            TaskNoteSyncStatusRow()
             inputField
             taskList
         }
