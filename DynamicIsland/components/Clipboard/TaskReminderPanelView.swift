@@ -30,6 +30,7 @@ struct TaskReminderPanelView: View {
     @ObservedObject private var manager = TaskReminderManager.shared
     @State private var inputText: String = ""
     @State private var hoveredTaskId: UUID?
+    @State private var isHeaderHovered: Bool = false
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -84,19 +85,29 @@ struct TaskReminderPanelView: View {
 
             iCloudStatusBadge(state: manager.iCloudSyncState)
 
-            Button {
-                onClose()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.secondary)
+            if isHeaderHovered {
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .help("Close")
+                .transition(.opacity)
+            } else {
+                Color.clear
                     .frame(width: 22, height: 22)
             }
-            .buttonStyle(.plain)
-            .help("Close")
         }
         .padding(.horizontal, ClipboardPanelMetrics.contentInset)
         .padding(.top, ClipboardPanelMetrics.contentInset)
+        .onHover { isHovered in
+            isHeaderHovered = isHovered
+        }
+        .animation(.easeOut(duration: 0.15), value: isHeaderHovered)
     }
 
     // MARK: - iCloud status badge
